@@ -1,7 +1,18 @@
 // Utility Functions
 
+/**
+ * Gets one of the provided canvas arangements.
+ * @return {Function} A method that applies the arangement.
+ */
 function getCanvasArangements() {
 	return {
+		/**
+		 * Arranges the canvas so that is maintains the aspect ratio specfied in the preferences lockAspectRatio.width
+		 * and lockAspectRatio.height
+		 * @param  {Game} game the main game instance
+		 * @throws {PreferenceException} If The lockAspectRatioSize.width or lockAspectRatioSize.height preferences are
+		 * missing or invalid.
+		 */
 		lockAspectRatio: function(game) {
 			if (game.hasOwnProperty('lockAspectRatioSize')) {
 				if (!(game.lockAspectRatioSize.hasOwnProperty('width') && game.lockAspectRatioSize.hasOwnProperty('height'))) {
@@ -17,18 +28,29 @@ function getCanvasArangements() {
 					game.lockAspectRatioSize.height);
 				game.context.clip();
 			} else {
-				throw 'Attempted to use lockAspectRatio canvas arangement without setting the lockAspectRatioSize preference';
+				throw new PreferenceException('lockAspectRatioSize',
+					'Used lockAspectRatio canvas arangement without setting lockAspectRatioSize preference');
 			}
 		},
+		/**
+		 * Arranges the canvas so that it takes up the entire window regardless of the window's size
+		 * @param  {Game} game the main game instance
+		 */
 		fillScreen: function(game) {
 			game.canvas.width = window.innerWidth();
 			game.canvas.height = window.innerHeight();
-		}, 
+		},
+		/**
+		 * Arranges the canvas so that it always stays at the fixed size specified in  the preferences
+		 * fixedSizeArangementSize.width, and fixedSizeArangementSize.height
+		 * @param  {Game} game the main game instance
+		 */
 		fixedSize: function(game) {
 			// If a fixed size is specified, fix the canvas size to that, otherwise, do not modify the canvas's size
 			if (game.hasOwnProperty('fixedSizeArangementSize')) {
 				if (!(game.fixedSizeArangementSize.hasOwnProperty('width') && game.fixedSizeArangementSize.hasOwnProperty('height'))) {
-					throw 'Specified fixedSizeArangementSize, but fixedSizeArangementSize did not contain both a width and height property';
+					throw new PreferenceException('fixedSizeArangementSize',
+						'Specified fixedSizeArangementSize, but fixedSizeArangementSize did not contain both a width and height property');
 				}
 				game.canvas.width = game.fixedSizeArangementSize.width;
 				game.canvas.height = game.fixedSizeArangementSize.height;
@@ -39,6 +61,11 @@ function getCanvasArangements() {
 
 // Class Definitions
 
+/**
+ * Creates an instance of a Canvas Game Library Game
+ *
+ * @param {Object} prefs The preferences used in creating the game
+ */
 function Game(prefs) {
 	Game.instance = this;
 	var prefKeys = Object.hasOwnPropertyNames(prefs);
@@ -63,16 +90,32 @@ function Game(prefs) {
 	var paused = false;
 	var updating = true;
 	var lastTime = null;
+	/**
+	 * If the update cycle should continue registering updates with the DOM scheduler
+	 *
+	 * @return {Boolean}
+	 */
 	this.shouldContinueUpdateCycle = function() {
 		return updating;
 	}
+	/**
+	 * Starts the updating cycle
+	 */
 	this.startUpdating = function() {
 		updating = true;
 		Game.instance.update();
 	}
+	/**
+	 * Stops the updating cycle
+	 */
 	this.stopUpdating = function() {
 		updating = false;
 	}
+	/**
+	 * Stops calling the step function on all entities except those that have stepWhenPaused = true
+	 *
+	 * @fires Entity#onPause
+	 */
 	this.pause = function() {
 		for (var i = 0; i < entities.length; ++i) {
 			if (entities[i].hasOwnProperty('onPause')) {
@@ -81,6 +124,11 @@ function Game(prefs) {
 		}
 		paused = true;
 	}
+	/**
+	 * Unpauses the game, resuming the calling of the step function on all entities
+	 *
+	 * @fires Entity#onUnpause
+	 */
 	this.unpause = function() {
 		for (var i = 0; i < entities.length; ++i) {
 			if (entities[i].hasOwnProperty('onUnpause')) {
@@ -256,7 +304,9 @@ Entity.prototype.destroy = function() {
 
 RenderedEntity.prototype = new Entity();
 RenderedEntity.prototype.constructor = RenderedEntity;
-function RenderedEntity() {}
+function RenderedEntity(props) {
+
+}
 
 RenderedEntity.prototype.requestForegound = function() {
 	if (!this.hasOwnProperty('render')) {
@@ -264,20 +314,40 @@ RenderedEntity.prototype.requestForegound = function() {
 	}
 	return Game.instance.requestForegound(this);
 }
-
 RenderedEntity.prototype.resignForeground = function() {
 	return Game.instance.resignForeground(this);
 }
-
 RenderedEntity.prototype.requestBackground = function() {
 	if (!this.hasOwnProperty('render')) {
 		return;
 	}
 	return Game.instance.requestBackground(this);
 }
-
 RenderedEntity.prototype.resignBackground = function() {
 	return Game.instance.resignBackground(this);
+}
+
+RenderedEntity.prototype.setX = function(x) {
+	this.x = x;
+}
+RenderedEntity.prototype.setY = function(y) {
+	this.y = y;
+}
+RenderedEntity.prototype.setZ = function(z) {
+	this.z = z;
+}
+
+
+// Exceptions
+
+/**
+ * Thrown to indicate that a preference was missing, or its value was Invalid
+ * @param {} preference
+ * @param {[type]} message
+ */
+function PreferenceException(preference, message) {
+	this.name = 'PreferenceException';
+	this.message = 'Invalid value for preference "' + preference + '", ' + message;
 }
 
 
