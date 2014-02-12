@@ -1,3 +1,4 @@
+
 // Utility Functions
 
 /**
@@ -67,6 +68,11 @@ function getCanvasArangements() {
  * @param {Object} prefs The preferences used in creating the game
  */
 function Game(prefs) {
+	/**
+	 * The main Game instance, this will be set to the last created instance of game, and should be used
+	 * for referencing the game instance from the library only
+	 * @type {Game}
+	 */
 	Game.instance = this;
 	var prefKeys = Object.hasOwnPropertyNames(prefs);
 	// Copy all properties of preferences
@@ -93,7 +99,7 @@ function Game(prefs) {
 	/**
 	 * If the update cycle should continue registering updates with the DOM scheduler
 	 *
-	 * @return {Boolean}
+	 * @return {Boolean} if the update cycle should continue registering updates with the DOM scheduler
 	 */
 	this.shouldContinueUpdateCycle = function() {
 		return updating;
@@ -137,9 +143,17 @@ function Game(prefs) {
 		}
 		paused = false;
 	}
+	/**
+	 * If the game is paused
+	 * @return {Boolean} if the game is paused
+	 */
 	this.isPaused = function() {
 		return paused;
 	}
+	/**
+	 * Gets the amount of time elapsed since the last step
+	 * @return {Number} the amount of time elapsed since the last step
+	 */
 	this.getDeltaTime = function() {
 		if (lastTime === null) {
 			lastTime = +new Date();
@@ -147,9 +161,19 @@ function Game(prefs) {
 		}
 		return (+new Date()) - lastTime;
 	}
+	/**
+	 * Get the entitiy that has control of the foreground
+	 * @return {Entity} The foreground Entity, or null if there is no Entity with control of the foreground
+	 */
 	this.getForegroundEntity = function() {
 		return foregroundEntity;
 	}
+	/**
+	 * Request that an Entity take control of the foreground
+	 * @param  {Entity} entity The Entity requesting control of the foreground
+	 * @fires Entity#onResignForegroundRequest
+	 * @return {Boolean} If the Entity successfully took control of the foreground
+	 */
 	this.requestForeground = function(entity) {
 		if (foregroundEntity === null) {
 			foregroundEntity = entity;
@@ -163,6 +187,14 @@ function Game(prefs) {
 		}
 		return false;
 	}
+	/**
+	 * Resigns the foreground. Should only be called by the entity with control of the foreground
+	 * @param  {Entity} resigner the Entity attempting to resign control of the foreground. Must be the Entity
+	 *                           that currently has foreground control or the function will do nothing
+	 * @fires Entity#onForegroundAvailable
+	 * @return {Entity} The entity that took control of the foreground from the resigner, or null if no Entity requested
+	 * to take control.
+	 */
 	this.resignForeground = function(resigner) {
 		if (resigner !== foregroundEntity) {
 			return null;
@@ -178,9 +210,19 @@ function Game(prefs) {
 		}
 		return null;
 	}
+	/**
+	 * Get the entity that has control of the background
+	 * @return {Entity} the background entity, or null if there is no entity with control of the background
+	 */
 	this.getBackgroundEntity = function() {
 		return backgroundEntity;
 	}
+	/**
+	 * Requests that an entity take control of the background
+	 * @param  {Entity} entity the entity requesting control of the background
+	 * @fires Entity#onResignBackgroundRequest
+	 * @return {Boolean} if the entity successfully took control of the background 
+	 */
 	this.requestBackground = function(entity) {
 		if (backgroundEntity === null) {
 			backgroundEntity = entity;
@@ -194,6 +236,14 @@ function Game(prefs) {
 		}
 		return false;
 	}
+	/**
+	 * Resigns the background. Should be called by the entity with control of the background
+	 * @param  {Entity} resigner the entity attempting to resign control of the background, must be the entity
+	 *                           that currently has background control or the function will do nothing
+	 * @fires Entity#onBackgroundAvailable
+	 * @return {Entity} The entity that took control of the foreground from the resigner, or null if no Entity requested
+	 * to take control
+	 */
 	this.resignBackground = function(resigner) {
 		if (resigner !== backgroundEntity) {
 			return null;
@@ -209,9 +259,16 @@ function Game(prefs) {
 		}
 		return null;
 	}
+	/**
+	 * Gets an array containing all entities currently registered with the game
+	 * @return {Array} The array of entities
+	 */
 	this.getEntities = function() {
 		return entities;
 	}
+	/**
+	 * Sorts the list of all entities from low to high by their z index values
+	 */
 	this.sortEntitiesByZIndex = function() {
 		entities.sort(function(a, b) {
 			if (a.hasOwnProperty('z') && b.hasOwnProperty('z')) {
@@ -225,26 +282,42 @@ function Game(prefs) {
 			}
 		});
 	}
+	/**
+	 * Adds an entity to this list of managed entities, this should be called by Entity.create
+	 * @param {Entity} entity The entity to add
+	 */
 	this.addEntity = function(entity) {
 		entities.push(entity);
 		return entity;
 	}
+	/**
+	 * Removes an entity from the list of managed entities, this should be called by Entity.destroy
+	 * @param  {Entity} entity The entity to remove
+	 * @return {Entity} A copy of the entity removed
+	 */
 	this.removeEntity = function(entity) {
 		entities.splice(entities.indexOf(entity), 1);
 		return entity;
 	}
 }
 
+/**
+ * Sets up the game's canvas
+ */
 Game.prototype.setupCanvas = function() {
 	this.canvas = document.getElementById(this.canvasId);
 	this.context = this.canvas.getContext('2d');
 }
 
+/**
+ * Runs a logic tick, and draws the game to the canvas
+ *
+ * Will register itself with the DOM scheduler to run prefs.updateRate milliseconds in the future
+ * while shouldContinueUpdateCycle() is true
+ */
 Game.prototype.update = function() {
-	if (!this.isPaused()) {
-		// Perform step call
-		this.step(this.getDeltaTime() / this.timeScale);
-	}
+	//Run a game tick
+	this.step(this.getDeltaTime() / this.timeScale);
 	//Update the canvas position, size, and translation
 	this.context.save();
 	this.canvasArangement(this);
@@ -257,15 +330,26 @@ Game.prototype.update = function() {
 		setTimeout(this.update, this.updateRate);
 	}
 }
-
+/**
+ * Causes a single logic tick in which every entity's step function is called unless the game is paused
+ * in which case a logic tick will occur for only entities with Entity.stepWhenPaused = true
+ * @param  {Number} deltaTime The time elapsed since the last logic tick
+ */
 Game.prototype.step = function(deltaTime) {
 	for (var i = 0; i < this.getEntities().length; ++i) {
 		if (this.getEntities()[i].hasOwnProperty('step')) {
-			this.getEntities()[i].step(deltaTime);
+			if (!this.isPaused() || this.getEntities[i].stepWhenPaused) {
+				this.getEntities()[i].step(deltaTime);
+			}
 		}
 	}
 }
-
+/**
+ * Draws the game to the canvas, this calls the render function of every entity starting with the
+ * entity with control of the background, then the rest of the entities in order of z index, and finally
+ * the entity with control of the foreground
+ * @param  {RenderingContext} c the canvas' rendering context
+ */
 Game.prototype.render = function(c) {
 	//Render the background entity
 	if (this.getBackgroundEntity() !== null && this.getBackgroundEntity().hasOwnProperty('render')) {
@@ -290,51 +374,117 @@ Game.prototype.render = function(c) {
 	}
 }
 
-function Entity() {}
+/**
+ * Represents a game object that can be updated, and drawn. In most cases, Entity should be
+ * inherited from rather than instanced
+ */
+function Entity() {
+}
 
+/**
+ * Creates the entity, puting it under the main game instance's management
+ * @return {Entity} the entity added
+ */
 Entity.prototype.create = function() {
 	Game.instance.addEntity(this);
 	return this;
 }
-
+/**
+ * Destroys an entity, removing it from the main game instance's management
+ * @return {[type]} [description]
+ */
 Entity.prototype.destroy = function() {
 	Game.instance.removeEntity(this);
 	return this;
 }
 
 RenderedEntity.prototype = new Entity();
-RenderedEntity.prototype.constructor = RenderedEntity;
+RenderedEntity.prototype.constructor = Entity;
+/**
+ * Represents an entity that is rendered to the game's canvas. In most cases, RenderedEntity
+ * should be inherited from rather than instanced
+ * @param {Object} props the properties to initialize the RenderedEntity with
+ */
 function RenderedEntity(props) {
 
 }
-
+/**
+ * Requests control of the foreground
+ * @return {Boolean} If the entity successfully took control of the foreground
+ */
 RenderedEntity.prototype.requestForegound = function() {
 	if (!this.hasOwnProperty('render')) {
 		return;
 	}
 	return Game.instance.requestForegound(this);
 }
+/**
+ * Resign control of the foreground
+ * @return {Boolean} If the entity had foreground control, and successfully resigned it
+ */
 RenderedEntity.prototype.resignForeground = function() {
 	return Game.instance.resignForeground(this);
 }
+/**
+ * Requests control of the background
+ * @return {Boolean} If the entity successfully took control of the background
+ */
 RenderedEntity.prototype.requestBackground = function() {
 	if (!this.hasOwnProperty('render')) {
 		return;
 	}
 	return Game.instance.requestBackground(this);
 }
+/**
+ * Resign control of the background
+ * @return {Boolean} If the entity had background control, and successfully resigned it
+ */
 RenderedEntity.prototype.resignBackground = function() {
 	return Game.instance.resignBackground(this);
 }
 
+/**
+ * Sets the RenderedEntity's x position
+ * @param {Number} x The new x position
+ */
 RenderedEntity.prototype.setX = function(x) {
 	this.x = x;
 }
+/**
+ * Sets the RenderedEntity's y position
+ * @param {Number} y The new y position
+ */
 RenderedEntity.prototype.setY = function(y) {
 	this.y = y;
 }
+/**
+ * Sets the RenderedEntity's z index
+ * @param {Number} z The new z index
+ */
 RenderedEntity.prototype.setZ = function(z) {
 	this.z = z;
+}
+
+/**
+ * Gets the RenderedEntity's x position
+ * @return {Number} The RenderedEntity's x position
+ */
+RenderedEntity.prototype.getX = function() {
+	return this.x;
+}
+/**
+ * Gets the RenderedEntity's y position
+ * @return {Number} The RenderedEntity's y position
+ */
+RenderedEntity.prototype.getY = function() {
+	return this.y;
+}
+/**
+ * Gets the RenderedEntity's z index
+ * @return {Number} The RenderedEntity's z index
+ */
+RenderedEntity.prototype.getZ = function() {
+	return this.z;
 }
 
 
