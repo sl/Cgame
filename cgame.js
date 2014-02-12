@@ -10,7 +10,7 @@ function getCanvasArangements() {
 		/**
 		 * Arranges the canvas so that is maintains the aspect ratio specfied in the preferences lockAspectRatio.width
 		 * and lockAspectRatio.height
-		 * @param  {Game} game the main game instance
+		 * @param  {Game} game The main game instance
 		 * @throws {PreferenceException} If The lockAspectRatioSize.width or lockAspectRatioSize.height preferences are
 		 * missing or invalid.
 		 */
@@ -35,7 +35,7 @@ function getCanvasArangements() {
 		},
 		/**
 		 * Arranges the canvas so that it takes up the entire window regardless of the window's size
-		 * @param  {Game} game the main game instance
+		 * @param  {Game} game The main game instance
 		 */
 		fillScreen: function(game) {
 			game.canvas.width = window.innerWidth();
@@ -44,7 +44,7 @@ function getCanvasArangements() {
 		/**
 		 * Arranges the canvas so that it always stays at the fixed size specified in  the preferences
 		 * fixedSizeArangementSize.width, and fixedSizeArangementSize.height
-		 * @param  {Game} game the main game instance
+		 * @param  {Game} game The main game instance
 		 */
 		fixedSize: function(game) {
 			// If a fixed size is specified, fix the canvas size to that, otherwise, do not modify the canvas's size
@@ -99,7 +99,7 @@ function Game(prefs) {
 	/**
 	 * If the update cycle should continue registering updates with the DOM scheduler
 	 *
-	 * @return {Boolean} if the update cycle should continue registering updates with the DOM scheduler
+	 * @return {Boolean} If the update cycle should continue registering updates with the DOM scheduler
 	 */
 	this.shouldContinueUpdateCycle = function() {
 		return updating;
@@ -145,14 +145,14 @@ function Game(prefs) {
 	}
 	/**
 	 * If the game is paused
-	 * @return {Boolean} if the game is paused
+	 * @return {Boolean} If the game is paused
 	 */
 	this.isPaused = function() {
 		return paused;
 	}
 	/**
 	 * Gets the amount of time elapsed since the last step
-	 * @return {Number} the amount of time elapsed since the last step
+	 * @return {Number} The amount of time elapsed since the last step
 	 */
 	this.getDeltaTime = function() {
 		if (lastTime === null) {
@@ -189,7 +189,7 @@ function Game(prefs) {
 	}
 	/**
 	 * Resigns the foreground. Should only be called by the entity with control of the foreground
-	 * @param  {Entity} resigner the Entity attempting to resign control of the foreground. Must be the Entity
+	 * @param  {Entity} resigner The Entity attempting to resign control of the foreground. Must be the Entity
 	 *                           that currently has foreground control or the function will do nothing
 	 * @fires Entity#onForegroundAvailable
 	 * @return {Entity} The entity that took control of the foreground from the resigner, or null if no Entity requested
@@ -212,16 +212,16 @@ function Game(prefs) {
 	}
 	/**
 	 * Get the entity that has control of the background
-	 * @return {Entity} the background entity, or null if there is no entity with control of the background
+	 * @return {Entity} The background entity, or null if there is no entity with control of the background
 	 */
 	this.getBackgroundEntity = function() {
 		return backgroundEntity;
 	}
 	/**
 	 * Requests that an entity take control of the background
-	 * @param  {Entity} entity the entity requesting control of the background
+	 * @param  {Entity} entity The entity requesting control of the background
 	 * @fires Entity#onResignBackgroundRequest
-	 * @return {Boolean} if the entity successfully took control of the background 
+	 * @return {Boolean} If the entity successfully took control of the background 
 	 */
 	this.requestBackground = function(entity) {
 		if (backgroundEntity === null) {
@@ -238,7 +238,7 @@ function Game(prefs) {
 	}
 	/**
 	 * Resigns the background. Should be called by the entity with control of the background
-	 * @param  {Entity} resigner the entity attempting to resign control of the background, must be the entity
+	 * @param  {Entity} resigner The entity attempting to resign control of the background, must be the entity
 	 *                           that currently has background control or the function will do nothing
 	 * @fires Entity#onBackgroundAvailable
 	 * @return {Entity} The entity that took control of the foreground from the resigner, or null if no Entity requested
@@ -348,7 +348,7 @@ Game.prototype.step = function(deltaTime) {
  * Draws the game to the canvas, this calls the render function of every entity starting with the
  * entity with control of the background, then the rest of the entities in order of z index, and finally
  * the entity with control of the foreground
- * @param  {RenderingContext} c the canvas' rendering context
+ * @param  {RenderingContext} c The canvas' rendering context
  */
 Game.prototype.render = function(c) {
 	//Render the background entity
@@ -378,12 +378,12 @@ Game.prototype.render = function(c) {
  * Represents a game object that can be updated, and drawn. In most cases, Entity should be
  * inherited from rather than instanced
  */
-function Entity() {
+function Entity(props) {
 }
 
 /**
  * Creates the entity, puting it under the main game instance's management
- * @return {Entity} the entity added
+ * @return {Entity} The entity added
  */
 Entity.prototype.create = function() {
 	Game.instance.addEntity(this);
@@ -391,7 +391,7 @@ Entity.prototype.create = function() {
 }
 /**
  * Destroys an entity, removing it from the main game instance's management
- * @return {[type]} [description]
+ * @return {Entity} The destroyed entity
  */
 Entity.prototype.destroy = function() {
 	Game.instance.removeEntity(this);
@@ -403,7 +403,7 @@ RenderedEntity.prototype.constructor = Entity;
 /**
  * Represents an entity that is rendered to the game's canvas. In most cases, RenderedEntity
  * should be inherited from rather than instanced
- * @param {Object} props the properties to initialize the RenderedEntity with
+ * @param {Object} props The properties to initialize the RenderedEntity with
  */
 function RenderedEntity(props) {
 
@@ -488,12 +488,13 @@ RenderedEntity.prototype.getZ = function() {
 }
 
 
+
 // Exceptions
 
 /**
  * Thrown to indicate that a preference was missing, or its value was Invalid
- * @param {} preference
- * @param {[type]} message
+ * @param {String} preference The invalid or missing preference
+ * @param {String} message The error message
  */
 function PreferenceException(preference, message) {
 	this.name = 'PreferenceException';
