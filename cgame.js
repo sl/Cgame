@@ -221,7 +221,7 @@ function Game(prefs) {
 	 * Requests that an entity take control of the background
 	 * @param  {Entity} entity The entity requesting control of the background
 	 * @fires Entity#onResignBackgroundRequest
-	 * @return {Boolean} If the entity successfully took control of the background 
+	 * @return {Boolean} If the entity successfully took control of the background
 	 */
 	this.requestBackground = function(entity) {
 		if (backgroundEntity === null) {
