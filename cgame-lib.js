@@ -41,7 +41,7 @@
     var PreferenceException = function(preference, message) {
         this.name = 'PreferenceException';
         this.message = 'Invalid value for preference "' + preference + '", ' + message;
-    }
+    };
 
     // Utility function definitions
 
@@ -458,142 +458,138 @@
                 c.restore();
             }
         };
-
-
-        /**
-         * Represents a game object that can be updated, and drawn. In most cases, Entity should be
-         * inherited from rather than instanced
-         * @param {Object} props the properties of the entity
-         */
-        Entity = function(props) {
-            var prefKeys = Object.getOwnPropertyNames(props);
-            // Copy all properties of the props object
-            for (var i = 0; i < prefKeys.length; ++i) {
-                this[prefKeys[i]] = prefs[prefKeys[i]];
-            }
-        };
-        /**
-         * Creates the entity, puting it under the main game instance's management
-         */
-        Entity.prototype.create = function() {
-            p[id(instance)].addEntity(this);
-        };
-        /**
-         * Destroys the entity, removing it from the main game instance's management
-         */
-        Entity.prototype.destroy = function() {
-            p[id(instance)].removeEntity(this);
-        };
-
-        RenderedEntity = function() {
-            Entity.apply(this, arguments);
-        }
-        RenderedEntity.prototype = Entity;
-        RenderedEntity.prototype.constructor = RenderedEntity;
-
-        /**
-         * Requests control of the foreground
-         * @return {Boolean} If the entity successfully took control of the foreground
-         */
-        RenderedEntity.prototype.requestForeground = function() {
-            if (!this.hasOwnProperty('render')) {
-                return;
-            }
-            return p[id(instance)].requestForeground(this);
-        };
-        /**
-         * Resigns control of the foreground
-         * @return {Entity} The entity that took foreground control, or null if the entity didn't have foreground control or if no
-         * entity took foreground control
-         */
-        RenderedEntity.prototype.resignForeground = function() {
-            return p[id(instance)].resignForeground(this);
-        };
-        /**
-         * Requests control of the background
-         * @return {Boolean} If the entity successfully took control of the background
-         */
-        RenderedEntity.prototype.requestBackground = function() {
-            if (!this.hasOwnProperty('render')) {
-                return;
-            }
-            return p[id(instance)].requestBackground(this);
-        };
-        /**
-         * Resigns control of the background
-         * @return {Entity} The entity that took background control, or null if the entity didn't have background control or if no
-         * entity took background control
-         */
-        RenderedEntity.prototype.resignBackground = function() {
-            return p[id(instance)].resignBackground(this);
-        }
-
-        /**
-         * Sets the RenderedEntity's x position
-         * @param {Number} x The new x position
-         */
-        RenderedEntity.prototype.setX = function(x) {
-            this.x = x;
-        }
-        /**
-         * Sets the RenderedEntity's y position
-         * @param {Number} y The new y position
-         */
-        RenderedEntity.prototype.setY = function(y) {
-            this.y = y;
-        }
-        /**
-         * Sets the RenderedEntity's z index
-         * @param {Number} z The new z index
-         */
-        RenderedEntity.prototype.setZ = function(z) {
-            this.z = z;
-        }
-        /**
-         * Gets the RenderedEntity's x position
-         */
-        RenderedEntity.prototype.getX = function() {
-            return this.x;
-        }
-        /**
-         * Gets the RenderedEntity's y position
-         */
-        RenderedEntity.prototype.getY = function() {
-            return this.y;
-        }
-        /**
-         * Gets the RenderedEntity's z index
-         */
-        RenderedEntity.prototype.getZ = function() {
-            return this.z;
-        }
-        /**
-         * Sets the RenderedEntity's location
-         *
-         * If passed an object, the entity will take on the x, y and z position/index values set in that objects properties
-         * If passed two numbers, will set the x and y position of the entity
-         * If passed three numbers, will set the x, y and z position/index values of the entity
-         */
-        RenderedEntity.prototype.setLoc = function() {
-            if (arguments.length === 0) {
-                return;
-            } else if (arguments.length === 1) {
-                var location = arguments[0];
-                this.x = location.x || this.x;
-                this.y = location.y || this.y;
-                this.z = location.z || this.z;
-            } else if (arguments.length === 2) {
-                this.x = arguments[0];
-                this.y = arguments[1];
-            } else if (arguments.length >= 3) {
-                this.x = arguments[0];
-                this.y = arguments[1];
-                this.z = arguments[2];
-            }
-        };
-
-        // TODO: Physics
     };
 
 
+    /**
+     * Represents a game object that can be updated, and drawn. In most cases, Entity should be
+     * inherited from rather than instanced
+     * @param {Object} props the properties of the entity
+     */
+    Entity = function(props) {
+        var prefKeys = Object.getOwnPropertyNames(props);
+        // Copy all properties of the props object
+        for (var i = 0; i < prefKeys.length; ++i) {
+            this[prefKeys[i]] = prefs[prefKeys[i]];
+        }
+    };
+    /**
+     * Creates the entity, puting it under the main game instance's management
+     */
+    Entity.prototype.create = function() {
+        p[id(instance)].addEntity(this);
+    };
+    /**
+     * Destroys the entity, removing it from the main game instance's management
+     */
+    Entity.prototype.destroy = function() {
+        p[id(instance)].removeEntity(this);
+    };
+
+    RenderedEntity = function() {
+        Entity.apply(this, arguments);
+    }
+    RenderedEntity.prototype = Entity;
+    RenderedEntity.prototype.constructor = RenderedEntity;
+
+    /**
+     * Requests control of the foreground
+     * @return {Boolean} If the entity successfully took control of the foreground
+     */
+    RenderedEntity.prototype.requestForeground = function() {
+        if (!this.hasOwnProperty('render')) {
+            return;
+        }
+        return p[id(instance)].requestForeground(this);
+    };
+    /**
+     * Resigns control of the foreground
+     * @return {Entity} The entity that took foreground control, or null if the entity didn't have foreground control or if no
+     * entity took foreground control
+     */
+    RenderedEntity.prototype.resignForeground = function() {
+        return p[id(instance)].resignForeground(this);
+    };
+    /**
+     * Requests control of the background
+     * @return {Boolean} If the entity successfully took control of the background
+     */
+    RenderedEntity.prototype.requestBackground = function() {
+        if (!this.hasOwnProperty('render')) {
+            return;
+        }
+        return p[id(instance)].requestBackground(this);
+    };
+    /**
+     * Resigns control of the background
+     * @return {Entity} The entity that took background control, or null if the entity didn't have background control or if no
+     * entity took background control
+     */
+    RenderedEntity.prototype.resignBackground = function() {
+        return p[id(instance)].resignBackground(this);
+    }
+
+    /**
+     * Sets the RenderedEntity's x position
+     * @param {Number} x The new x position
+     */
+    RenderedEntity.prototype.setX = function(x) {
+        this.x = x;
+    }
+    /**
+     * Sets the RenderedEntity's y position
+     * @param {Number} y The new y position
+     */
+    RenderedEntity.prototype.setY = function(y) {
+        this.y = y;
+    }
+    /**
+     * Sets the RenderedEntity's z index
+     * @param {Number} z The new z index
+     */
+    RenderedEntity.prototype.setZ = function(z) {
+        this.z = z;
+    }
+    /**
+     * Gets the RenderedEntity's x position
+     */
+    RenderedEntity.prototype.getX = function() {
+        return this.x;
+    }
+    /**
+     * Gets the RenderedEntity's y position
+     */
+    RenderedEntity.prototype.getY = function() {
+        return this.y;
+    }
+    /**
+     * Gets the RenderedEntity's z index
+     */
+    RenderedEntity.prototype.getZ = function() {
+        return this.z;
+    }
+    /**
+     * Sets the RenderedEntity's location
+     *
+     * If passed an object, the entity will take on the x, y and z position/index values set in that objects properties
+     * If passed two numbers, will set the x and y position of the entity
+     * If passed three numbers, will set the x, y and z position/index values of the entity
+     */
+    RenderedEntity.prototype.setLoc = function() {
+        if (arguments.length === 0) {
+            return;
+        } else if (arguments.length === 1) {
+            var location = arguments[0];
+            this.x = location.x || this.x;
+            this.y = location.y || this.y;
+            this.z = location.z || this.z;
+        } else if (arguments.length === 2) {
+            this.x = arguments[0];
+            this.y = arguments[1];
+        } else if (arguments.length >= 3) {
+            this.x = arguments[0];
+            this.y = arguments[1];
+            this.z = arguments[2];
+        }
+    };
 })();
