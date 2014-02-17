@@ -268,6 +268,7 @@
          * @fires Entity#onUnpause
          */
         this.unpause = function() {
+            paused = false;
             for (var i = 0; i < entities.length; ++i) {
                 if (entities[i].hasOwnProperty('onUnpause')) {
                     entities[i].onUnpause();
