@@ -72,6 +72,16 @@
                     game.context.rect(-game.prefs.lockAspectRatioSize.width / 2, -game.prefs.lockAspectRatioSize.height / 2, game.prefs.lockAspectRatioSize.width,
                         game.prefs.lockAspectRatioSize.height);
                     game.context.clip();
+                    if (game.pointTransform == null) {
+                        game.pointTransform = function(point) {
+                            var s = Math.min(instance.canvas.height / instance.prefs.lockAspectRatioSize.height, instance.canvas.width / instance.prefs.lockAspectRatioSize.width);
+                            var nx = point.x - (instance.canvas.width / 2 | 0);
+                            var ny = point.y - (instance.canvas.height / 2 | 0);
+                            nx = nx / s;
+                            ny = ny / -s;
+                            return {x: nx, y: ny};
+                        };
+                    }
                 } else {
                     throw new PreferenceException('lockAspectRatioSize',
                         'Used lockAspectRatio canvas arangement without setting lockAspectRatioSize preference');
@@ -84,6 +94,14 @@
             fillScreen: function(game) {
                 game.canvas.width = window.innerWidth();
                 game.canvas.height = window.innerHeight();
+                game.context.scale(1, -1);
+                if (game.pointTransform == null) {
+                    game.pointTransform = function(point) {
+                        var ret = point;
+                        ret.y *= -1;
+                        return ret;
+                    };
+                }
             },
             /**
              * Arranges the canvas so that it always stays at the fixed size specified in  the preferences
@@ -99,6 +117,14 @@
                     }
                     game.canvas.width = game.prefs.fixedSizeArangementSize.width;
                     game.canvas.height = game.prefs.fixedSizeArangementSize.height;
+                    game.context.scale(1, -1);
+                    if (game.pointTransform == null) {
+                        game.pointTransform = function(point) {
+                            var ret = point;
+                            ret.y *= -1;
+                            return ret;
+                        };
+                    }
                 }
             }
         };
@@ -188,6 +214,8 @@
         var lastTime = null;
 
         // Initializes any preferences that are necessary but weren't assigned
+
+        var mouse = {x: null, y: null};
 
         if (!this.prefs.hasOwnProperty('timeScale')) {
             this.prefs.timeScale = 1;
@@ -417,6 +445,13 @@
             }
             instance.canvas = document.getElementById(instance.prefs.canvasId);
             instance.context = instance.canvas.getContext('2d');
+            instance.canvas.addEventListener('mousemove', function(e) {
+                var rect = instance.canvas.getBoundingClientRect();
+                var untransformedMouse = {}
+                untransformedMouse.x = e.clientX - rect.left;
+                untransformedMouse.y = e.clientY - rect.top;
+                mouse = instance.pointTransform(untransformedMouse);
+            }, false);
         };
 
         /**
