@@ -104,6 +104,19 @@
         };
     };
 
+    Util = {
+        /**
+         * Gets a value clamped within a range
+         * @param  {Number} x   The value to clamp
+         * @param  {Number} min The minimum of the clamping range
+         * @param  {Numver} max The maximum of the clamping range
+         * @return {Number}     The value clamped within the specified range
+         */
+        clamp: function(x, min, max) {
+            return x < min ? min : (x > max ? max : x);
+        },
+    };
+
     // Class Definitions
 
     /*
@@ -460,13 +473,349 @@
         };
     };
 
+    // Vectors
+    
+    Vector = function(x, y) {
+        this.x = x;
+        this.y = y;
+        this.getMagnitudeSquared = function() {
+            return Math.pow(this.x, 2) + Math.pow(this.y, 2);
+        };
+        this.getMagnitude = function() {
+            return Math.sqrt(this.getMagnitudeSquared());
+        };
+        this.add = function(v) {
+            return new Vector(this.x + v.x, this.y + v.y);
+        };
+        this.subtract = function(v) {
+            return new Vector(this.x - v.y, this.y - v.y);
+        };
+        this.divide = function(s) {
+            return new Vector(this.x / s, this.y / s);
+        };
+        this.times = function(s) {
+            return new Vector(this.x * s, this.y * s);
+        };
+        this.dot = function(v) {
+            return this.x * v.x + this.y * v.y;
+        };
+    };
+
+    // Collision logic
+    
+    var AABBcollidesWithCircle = function(aabb, c) {
+        var A = new Vector(aabb.parent.x, aabb.parent.y);
+        var B = new Vector(c.parent.x, c.parent.y);
+        var n = B.subtract(A);
+        var closest = n;
+        var xExtent = aabb.width / 2;
+        var yExtent = aabb.height / 2;
+        closest.x = Util.clamp(-xExtent, xExtent, closest.x);
+        closest.y = Util.clamp(-yExtent, yExtent, closest.y);
+        var inside = false;
+        if (n.x === closest.x && n.y === closest.y) {
+            inside = true;
+            if (Math.abs(n.x) > Math.abs(n.y)) {
+                if (closest.x > 0) {
+                    closest.x = xExtent;
+                } else {
+                    closest.x = -xExtent;
+                }
+            } else {
+                if (closest.y > 0) {
+                    closest.y = yExtent;
+                } else {
+                    closest.y = -yExtent;
+                }
+            }
+        }
+        var normal = n.subtract(closest);
+        d = normal.getMagnitudeSquared();
+        var r = c.radius;
+        return !(d > r * r && !inside);
+    };
+    
+    /**
+     * A collection of bounding boxes
+     * @type {Object}
+     */
+    BoundingBox = {
+        /**
+         * An axis aligned rectangle bounding box
+         * @param {PhysicsEntity} parent The parent entity
+         * @param {Number} width  The width of the bounding box
+         * @param {Number} height The height of the bounding box
+         */
+        AABB: function(parent, width, height) {
+            this.parent = parent;
+            this.width = width;
+            this.height = height;
+            this.max = function() {
+                return { x: this.parent.x + this.width / 2, y: this.parent.y + this.height / 2 };
+            };
+            this.min = function() {
+                return { x: this.parent.x - this.width / 2, y: this.parent.y - this.height / 2 };
+            };
+            this.collidesWith = function(b) {
+                if (b instanceof BoundingBox.AABB) {
+                    return !(this.max().x < b.min().x || this.min().x > b.max().x ||
+                        this.max().y < b.min().y || this.min().y > b.max().y);
+                } else if (b instanceof BoundingBox.Circle) {
+                    return AABBcollidesWithCircle(this, b);
+                }
+            };
+        },
+        /**
+         * A circular collider
+         * @param {PhysicsEntity} parent The parent entity
+         * @param {Number} radius The radius of the collider
+         */
+        Circle: function(parent, radius) {
+            this.parent = parent;
+            this.radius = radius;
+            this.collidesWith = function(b) {
+                if (b instanceof BoundingBox.Circle) {
+                    var A = new Vector(this.parent.x, this.parent.y);
+                    var B = new Vector(b.parent.x, b.parent.y)
+                    return B.subtract(A).getMagnitudeSquared() < Math.pow(this.radius + b.radius, 2);
+                } else if (b instanceof BoundingBox.AABB) {
+                    return AABBcollidesWithCircle(b, this);
+                }
+            };
+        }
+    };
+    
+    var Collision = {
+        /**
+         * An axis aligned rectangle bounding box
+         * @param {PhysicsEntity} parent The parent entity
+         * @param {Number} width  The width of the bounding box
+         * @param {Number} height The height of the bounding box
+         */
+        AABB: BoundingBox.AABB,
+        /**
+         * A circular collider
+         * @param {PhysicsEntity} parent The parent entity
+         * @param {Number} radius The radius of the collider
+         */
+        Circle: BoundingBox.Circle,
+        /**
+         * Checks for, and resolves a collisions between two entities
+         * @param  {PhysicsEntity} e1 The first entity
+         * @param  {PhysicsEntity} e2 The second entity
+         */
+        checkAndResolveCollision: function(e1, e2) {
+            if (e1.collidesWith == null || e2.collidesWith == null ||
+                    e1.collidesWith.length === 0 || e2.collidesWith.length === 0) {
+                return;
+            }
+            if (e1.collidesWith.indexOf(e2.collisionLayer) === -1 || e2.collidesWith.indexOf(e1.collisionLayer) === -1) {
+                return;
+            }
+            var manifold;
+            var switched = false;
+            if (e1.bounds instanceof Collision.Circle && e2.bounds instanceof Collision.Circle) {
+                manifold = Collision.getManifoldCvC(e1, e2);
+            } else if (e1.bounds instanceof Collision.AABB && e2.bounds instanceof Collision.AABB) {
+                manifold = Collision.getManifoldAABBvAABB(e1, e2);
+            } else {
+                if (e1 instanceof Collision.AABB) {
+                    manifold = Collision.getManifoldAABBvC(e1, e2);
+                } else {
+                    manifold = Collision.getManifoldAABBvC(e2, e1);
+                    switched = true;
+                }
+            }
+            if (manifold == null) {
+                return;
+            }
+            if (switched) {
+                Collision.resolveCollision(e2, e1, manifold);
+                Collision.positionalCorrection(e2, e1, manifold);
+                return;
+            }
+            Collision.resolveCollision(e1, e2, manifold);
+            Collision.positionalCorrection(e1, e2, manifold);
+        },
+        /**
+         * Gets the minimum of two entities restitutions
+         * @param  {PhysicsEntity} e1 The first entity
+         * @param  {PhysicsEntity} e2 The second entity
+         * @return {Number}    The lower of the two entities restitutions
+         */
+        minR: function(e1, e2) {
+            return Math.min(e1.restitution, e2.restitution);
+        },
+        /**
+         * Generates a manifold for a circle v circle collision
+         * @param  {PhysicsEntity} e1 The first entity
+         * @param  {PhysicsEntity} e2 The second entity
+         * @return {Object}    The collision manifold
+         */
+        getManifoldCvC: function(e1, e2) {
+            var m = {};
+            m.A = new Vector(e1.x, e1.y);
+            m.B = new Vector(e2.x, e2.y);
+            m.n = m.B.subtract(m.A);
+            var r = e1.radius + e2.radius;
+            r *= r;
+            var d;
+            if (m.n.getMagnitudeSquared() > r) {
+                return null;
+            }
+            d = m.n.getMagnitude();
+            if (d !== 0) {
+                m.penetration = r - d;
+                m.normal = m.n.divide(d);
+                return m;
+            } else {
+                m.penetration = m.A.radius;
+                m.normal = new Vector(1, 0);
+                return m;
+            }
+        },
+        /**
+         * Generates a manifold for an AABB v AABB collision
+         * @param  {PhysicsEntity} e1 The first entity
+         * @param  {PhysicsEntity} e2 The second entity
+         * @return {Object}    The collision manifold
+         */
+        getManifoldAABBvAABB: function(e1, e2) {
+            var m = {};
+            m.A = new Vector(e1.x, e1.y);
+            m.B = new Vector(e2.x, e2.y);
+            m.n = m.B.subtract(m.A);
+            var abox = e1.bounds;
+            var bbox = e2.bounds;
+            var aExtent = abox.width / 2;
+            var bExtent = bbox.width / 2;
+            var xOverlap = aExtent + bExtent - Math.abs(m.n.x);
+            if (xOverlap > 0) {
+                aExtent = abox.height / 2;
+                bExtent = bbox.height / 2;
+                var yOverlap = aExtent + bExtent - Math.abs(m.n.y);
+                if (yOverlap > 0) {
+                    if (xOverlap > yOverlap) {
+                        if (m.n.x < 0) {
+                            m.normal = new Vector(-1, 0);
+
+                        } else {
+                            m.normal = new Vector(1, 0);
+                        }
+                        m.penetration = xOverlap;
+                        return m;
+                    } else {
+                        if (m.n.y < 0) {
+                            m.normal = new Vector(0, -1);
+                        } else {
+                            m.normal = new Vector(0, 1);
+                        }
+                        m.penetration = yOverlap;
+                        return m;
+                    }
+                }
+            }
+            return null;
+        },
+        /**
+         * Generates a manifold for an AABB v circle collision
+         * @param  {PhysicsEntity} aabb The entity with the AABB collider
+         * @param  {PhysicsEntity} c    The entity with the circle collider
+         * @return {Object}      The collision manifold
+         */
+        getManifoldAABBvC: function(aabb, c) {
+            var m = {};
+            m.A = new Vector(aabb.x, aabb.y);
+            m.B = new Vector(c.x, c.y);
+            m.n = m.B.subtract(m.A);
+            var closest = m.n;
+            var xExtent = aabb.bounds.width / 2;
+            var yExtent = aabb.bounds.height / 2;
+            closest.x = Util.clamp(-xExtent, xExtent, closest.x);
+            closest.y = Util.clamp(-yExtent, yExtent, closest.y);
+            var inside = false;
+            // If circle is inside AABB, clamp circles center to closest edge
+            if (m.n.x === closest.x && m.n.y === closest.y) {
+                inside = true;
+                // Find and clamp to closest axis
+                if (Math.abs(m.n.x) > Math.abs(m.n.y)) {
+                    if (closest.x > 0) {
+                        closest.x = xExtent;
+                    } else {
+                        closest.x = -xExtent;
+                    }
+                } else {
+                    if (closest.y > 0) {
+                        closest.y = yExtent;
+                    } else {
+                        closest.y = -yExtent;
+                    }
+                }
+            }
+            var normal = m.n.subtract(closest);
+            var d = normal.getMagnitudeSquared();
+            var r = c.bounds.radius;
+            // Bail early if the circle is not inside the AABB
+            if (d > r * r && !inside) {
+                return null;
+            }
+            d = Math.sqrt(d);
+            if (inside) {
+                m.normal = m.normal.times(-1);
+            } else {
+                m.normal = n;
+            }
+            m.penetration = r + d;
+            return m;
+        },
+        /**
+         * Resolves a collision between two entities
+         * @param  {PhysicsEntity} e1       The first entity
+         * @param  {PhysicsEntity} e2       The second entity
+         * @param  {Object} manifold The collision manifold
+         */
+        resolveCollision: function(e1, e2, manifold) {
+            var rv = e1.getVelocity().subtract(e2.getVelocity());
+            var velocityAlongNormal = rv.dot(manifold.normal);
+            if (velocityAlongNormal > 0) {
+                return;
+            }
+            var e = Collision.minR(e1, e2);
+            // J represents impulse
+            var j = -(1 + e) * velocityAlongNormal;
+            j /= e1.invMass + e2.invMass;
+            var impulseVector = manifold.normal.times(j);
+            e1.applyForce(impulseVector.times(-1 * e1.invMass));
+            e2.applyForce(impulseVector.times(e2.invMass));
+        },
+        /**
+         * Corrects the position of two entities that have collided to stop them from sinking into eachother
+         * @param  {PhysicsEntity} e1       The first entity
+         * @param  {PhysicsEntity} e2       The second entity
+         * @param  {Object} manifold The collision manifold
+         */
+        positionalCorrection: function(e1, e2, manifold) {
+            // Correction percent
+            var percent = 0.2;
+            // Correction threshhold
+            var slop = 0.01;
+            var correction = manifold.n.times(Math.max(manifold.penetration - slop, 0) / (e1.invMass + e2.invMass) * percent);
+            e1.modifyLoc(correction.times(-1 * e1.invMass));
+            e2.modifyLoc(correction.times(e2.invMass));
+        }
+    };
+
+    // Entity and subclasses
 
     /**
      * Represents a game object that can be updated, and drawn. In most cases, Entity should be
      * inherited from rather than instanced
-     * @param {Object} props the properties of the entity
+     * @param {Object} props The properties to initialize the entity with
      */
     Entity = function(props) {
+        if (props === undefined) {
+            return;
+        }
         var prefKeys = Object.getOwnPropertyNames(props);
         // Copy all properties of the props object
         for (var i = 0; i < prefKeys.length; ++i) {
@@ -486,10 +835,17 @@
         p[id(instance)].removeEntity(this);
     };
 
+    /**
+     * Creates an entity that can be rendered to the canvas
+     * @param {Object} properties The properties to initialize the RenderedEntity with
+     *                            {Object}.x  The x location
+     *                            {Object}.y  The y location
+     *                            {Object}.z  The z index
+     */
     RenderedEntity = function() {
         Entity.apply(this, arguments);
-    }
-    RenderedEntity.prototype = Entity;
+    };
+    RenderedEntity.prototype = Object.create(Entity.prototype);
     RenderedEntity.prototype.constructor = RenderedEntity;
 
     /**
@@ -527,7 +883,7 @@
      */
     RenderedEntity.prototype.resignBackground = function() {
         return p[id(instance)].resignBackground(this);
-    }
+    };
 
     /**
      * Sets the RenderedEntity's x position
@@ -535,39 +891,39 @@
      */
     RenderedEntity.prototype.setX = function(x) {
         this.x = x;
-    }
+    };
     /**
      * Sets the RenderedEntity's y position
      * @param {Number} y The new y position
      */
     RenderedEntity.prototype.setY = function(y) {
         this.y = y;
-    }
+    };
     /**
      * Sets the RenderedEntity's z index
      * @param {Number} z The new z index
      */
     RenderedEntity.prototype.setZ = function(z) {
         this.z = z;
-    }
+    };
     /**
      * Gets the RenderedEntity's x position
      */
     RenderedEntity.prototype.getX = function() {
         return this.x;
-    }
+    };
     /**
      * Gets the RenderedEntity's y position
      */
     RenderedEntity.prototype.getY = function() {
         return this.y;
-    }
+    };
     /**
      * Gets the RenderedEntity's z index
      */
     RenderedEntity.prototype.getZ = function() {
         return this.z;
-    }
+    };
     /**
      * Sets the RenderedEntity's location
      *
@@ -592,4 +948,145 @@
             this.z = arguments[2];
         }
     };
+    /**
+     * Modifies the entity's location by the given value
+     *
+     * If passed an object, will modify by the objects x and y values
+     * If passed two numbers will modify the entity's position with the first as delta x and the second as delta y
+     */
+    RenderedEntity.prototype.modifyLoc = function() {
+        if (arguments.length === 0) {
+            return;
+        } else if (arguments.length === 1) {
+            var change = arguments[0];
+            this.x += change.x || 0;
+            this.y += change.y || 0;
+        } else if (arguments.length >= 2) {
+            this.x += arguments[0];
+            this.y += arguments[1];
+        }
+    };
+
+    /**
+     * Creates an entity with a bounding box
+     * @param {Object} properties The properties to initialize the Bounded Entity with
+     *                            {Object}.bounds The bounding box
+     *                            {Object}.onCollide(entity) Collision event handler, entity = the entity collided with
+     *                            {Object}.bounds  The bounding box 
+     *                            {Object}.collidesWith An array of strings indicating the collision layers the entity will collide with
+     *                            {Object}.collisionLayer A string indicating which collision layer the object lies on 
+     */
+    BoundedEntity = function() {
+        RenderedEntity.apply(this, arguments);
+    };
+    BoundedEntity.prototype = Object.create(RenderedEntity.prototype);
+    BoundedEntity.constructor = BoundedEntity;
+
+    BoundedEntity.prototype.step = function() {
+        if (this.collisionLayer == null || this.collisionLayer === '' || this.collidesWith == null || this.collidesWith.length === 0 ||
+            this.bounds == null) {
+            return;
+        }
+        var entities = instance.getEntities();
+        for (var i = 0; i < entities.length; ++i) {
+            if (entities[i].collisionLayer == null || entities[i].collisionLayer === '' || entities[i].collidesWith == null ||
+                entities[i].collidesWith.length === 0 || entities[i].bounds == null || this.onCollide == null) {
+                continue;
+            }
+            if (entities[i] instanceof BoundedEntity && entities[i].collisionLayer.indexOf(this.collidesWith) !== -1 &&
+                this.collidesWith.indexOf(entities[i].collisionLayer) !== -1 && this.bounds.collidesWith(entities[i].bounds)) {
+                this.onCollide(entities[i]);
+            }
+        }
+    };
+
+    /**
+     * Creates an entity with basic 2-D physics that uses a Force impulse resolution model
+     * @param {Object} properties The properties to initialize the RenderedEntity with, can use
+     * any BoundedEntity properties
+     *                            {Object}.x  The x location
+     *                            {Object}.y  The y location
+     *                            {Object}.z  The z index
+     *                            {Object}.vx  The x velocity
+     *                            {Object}.vy  The y velocity
+     *                            {Object}.enableCollisionResponse
+     *                            {Object}.mass
+     *                            {Object}.restitution
+     *                            {Object}.friction                   
+     */
+    PhysicsEntity = function() {
+        BoundedEntity.apply(this, arguments);
+        if (this.mass != null) {
+            if (this.mass === 0) {
+                this.invMass = 0;
+            }
+            this.invMass = 1 / this.mass;
+        }
+        this.collidesWith = this.collidesWith || [];
+        this.enableCollisionResponse = this.enableCollisionResponse || false;
+        if (this.enableCollisionResponse) {
+            this.mass = this.mass || 1;
+            this.restitution = this.restitution || 1;
+            this.friction = this.friction || 0;
+        }
+    };
+    PhysicsEntity.prototype = Object.create(BoundedEntity.prototype);
+    PhysicsEntity.prototype.constructor = PhysicsEntity;
+
+    /**
+     * Runs a single logic tick, preforming physics operations for the object, and modifying its position accordingly
+     * @param  {[type]} deltaTime [description]
+     * @return {[type]}           [description]
+     */
+    PhysicsEntity.prototype.step = function(deltaTime) {
+        // Call the superclasses step function
+        BoundedEntity.prototype.step.apply(this, arguments);
+        // Perform physics, and collision logic
+        if (this.enableCollisionResponse) {
+            for (var i = 0; i < instance.getEntities().length; ++i) {
+                if (instance.getEntities()[i] instanceof PhysicsEntity) {
+                    Collision.checkAndResolveCollision(this, instance.getEntities()[i]);
+                }
+            }
+        }
+        // Update the entities position based on its velocity
+        this.x += vx * deltaTime;
+        this.y += vy * deltaTime;
+    };
+
+    /**
+     * Gets the PhysicsEntity's velocity as a vector
+     * @return {Vector} The PhysicsEntity's velocity
+     */
+    PhysicsEntity.prototype.getVelocity = function() {
+        return new Vector(this.x, this.y);
+    };
+    /**
+     * Sets the PhysicsEntitiy's velocity as a vector
+     * @param {Vector} v The new velocity
+     */
+    PhysicsEntity.prototype.setVelocity = function(v) {
+        this.vx = v.x;
+        this.vy = v.y;
+    };
+
+    /**
+     * Modifies the velocity of an object by the given values
+     *
+     * If passed a single object, will modify the x and y velicities by the amount given in {Object}.x and {Object}.y
+     * If passed two arguments, will use on as the change in  x velocity, and one as the y velocity
+     */
+    PhysicsEntity.prototype.applyForce = function() {
+        if (arguments.length === 0) {
+            return;
+        }
+        if (arguments.length === 1) {
+            this.vx += arguments.x || 0;
+            this.vy += arguments.y || 0;
+        } else if (arguments.length >= 2) {
+            this.vx += arguments[0];
+            this.vy += arguments[1];
+        }
+    };
+
 })();
