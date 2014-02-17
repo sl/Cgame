@@ -63,10 +63,10 @@
                     if (!(game.prefs.lockAspectRatioSize.hasOwnProperty('width') && game.prefs.lockAspectRatioSize.hasOwnProperty('height'))) {
                         throw 'Specified lockAspectRatioSize, but lockAspectRatioSize did not contain both a width and height property';
                     }
-                    game.canvas.width = window.innerWidth();
-                    game.canvas.height = window.innerHeight();
+                    game.canvas.width = window.innerWidth;
+                    game.canvas.height = window.innerHeight;
                     var s = Math.min(game.canvas.height / game.prefs.lockAspectRatioSize.height, game.canvas.width / game.prefs.lockAspectRatioSize.width);
-                    game.context.translate(game.canvas.width / 2 | 0, game.canvas.height / 2 | |0);
+                    game.context.translate(game.canvas.width / 2 | 0, game.canvas.height / 2 | 0);
                     game.context.scale(s, -s);
                     game.context.beginPath();
                     game.context.rect(-game.prefs.lockAspectRatioSize.width / 2, -game.prefs.lockAspectRatioSize.height / 2, game.prefs.lockAspectRatioSize.width,
@@ -115,6 +115,16 @@
         clamp: function(x, min, max) {
             return x < min ? min : (x > max ? max : x);
         },
+        getCoordsFromBounds: function(x1, x2, y1, y2) {
+            var coords = {};
+            coords.x = (x1 + x2) / 2;
+            coords.y = (y1 + y2) / 2;
+            coords.width = x1 - x2;
+            coords.height = y1 - y2;
+            coords.width = Math.abs(coords.width);
+            coords.height = Math.abs(coords.height);
+            return coords;
+        }
     };
 
     // Class Definitions
@@ -203,7 +213,8 @@
          */
         this.startUpdating = function() {
             updating = true;
-            this.update();
+            p[id(this)].setupCanvas();
+            p[id(this)].update();
         };
         /**
          * Stops the update cycle
@@ -276,7 +287,9 @@
                 lastTime = +new Date();
                 return 0;
             }
-            return (+new Date()) - lastTime;
+            var dt = (+new Date()) - lastTime;
+            lastTime = +new Date();
+            return dt;
         };
 
         /**
@@ -402,10 +415,7 @@
             if (!instance.prefs.hasOwnProperty('canvasId') || typeof instance.prefs.canvasId  !== 'string') {
                 throw new PreferenceException('canvasId', 'was not a valid HTML id');
             }
-            instance.canvas = document.getElementById(instance.canvasId);
-            if (!(instance.canvas instanceof HTMLCanvasElement) {
-                throw new PreferenceException('canvasId', 'ID did point to a valid HTML canvas element');
-            }
+            instance.canvas = document.getElementById(instance.prefs.canvasId);
             instance.context = instance.canvas.getContext('2d');
         };
 
@@ -424,7 +434,7 @@
             // Restore the context
             instance.context.restore();
             // Schedule the next update with the DOM
-            if (p[id(instance)].shouldContinueUpdateCycle()) {
+            if (instance.shouldContinueUpdateCycle()) {
                 setTimeout(p[id(instance)].update, instance.prefs.updateInterval);
             }
         };
@@ -474,7 +484,7 @@
     };
 
     // Vectors
-    
+
     Vector = function(x, y) {
         this.x = x;
         this.y = y;
@@ -502,7 +512,7 @@
     };
 
     // Collision logic
-    
+
     var AABBcollidesWithCircle = function(aabb, c) {
         var A = new Vector(aabb.parent.x, aabb.parent.y);
         var B = new Vector(c.parent.x, c.parent.y);
@@ -534,7 +544,7 @@
         var r = c.radius;
         return !(d > r * r && !inside);
     };
-    
+
     /**
      * A collection of bounding boxes
      * @type {Object}
@@ -584,7 +594,7 @@
             };
         }
     };
-    
+
     var Collision = {
         /**
          * An axis aligned rectangle bounding box
@@ -819,7 +829,7 @@
         var prefKeys = Object.getOwnPropertyNames(props);
         // Copy all properties of the props object
         for (var i = 0; i < prefKeys.length; ++i) {
-            this[prefKeys[i]] = prefs[prefKeys[i]];
+            this[prefKeys[i]] = props[prefKeys[i]];
         }
     };
     /**
@@ -972,9 +982,9 @@
      * @param {Object} properties The properties to initialize the Bounded Entity with
      *                            {Object}.bounds The bounding box
      *                            {Object}.onCollide(entity) Collision event handler, entity = the entity collided with
-     *                            {Object}.bounds  The bounding box 
+     *                            {Object}.bounds  The bounding box
      *                            {Object}.collidesWith An array of strings indicating the collision layers the entity will collide with
-     *                            {Object}.collisionLayer A string indicating which collision layer the object lies on 
+     *                            {Object}.collisionLayer A string indicating which collision layer the object lies on
      */
     BoundedEntity = function() {
         RenderedEntity.apply(this, arguments);
@@ -1004,15 +1014,23 @@
      * Creates an entity with basic 2-D physics that uses a Force impulse resolution model
      * @param {Object} properties The properties to initialize the RenderedEntity with, can use
      * any BoundedEntity properties
+     *                            From RenderedEntity
      *                            {Object}.x  The x location
      *                            {Object}.y  The y location
      *                            {Object}.z  The z index
+     *
+     *                            From BoundedEntity
+     *                            {Object}.bounds The bounding box
+     *                            {Object}.onCollide(entity) Collision event handler, entity = the entity collided with
+     *                            {Object}.collidesWith An array of strings indicating the collision layers the entity will collide with
+     *                            {Object}.collisionLayer A string indicating which collision layer the object lies on
+     *
      *                            {Object}.vx  The x velocity
      *                            {Object}.vy  The y velocity
      *                            {Object}.enableCollisionResponse
      *                            {Object}.mass
      *                            {Object}.restitution
-     *                            {Object}.friction                   
+     *                            {Object}.friction
      */
     PhysicsEntity = function() {
         BoundedEntity.apply(this, arguments);
@@ -1023,12 +1041,14 @@
             this.invMass = 1 / this.mass;
         }
         this.collidesWith = this.collidesWith || [];
-        this.enableCollisionResponse = this.enableCollisionResponse || false;
-        if (this.enableCollisionResponse) {
-            this.mass = this.mass || 1;
-            this.restitution = this.restitution || 1;
-            this.friction = this.friction || 0;
+        if (!this.hasOwnProperty('enableCollisionResponse')) {
+            this.enableCollisionResponse = false;
         }
+        this.mass = this.mass || 0;
+        this.restitution = this.restitution || 1;
+        this.friction = this.friction || 0;
+        this.vx = this.vx || 0;
+        this.vy = this.vy || 0;
     };
     PhysicsEntity.prototype = Object.create(BoundedEntity.prototype);
     PhysicsEntity.prototype.constructor = PhysicsEntity;
@@ -1041,6 +1061,9 @@
     PhysicsEntity.prototype.step = function(deltaTime) {
         // Call the superclasses step function
         BoundedEntity.prototype.step.apply(this, arguments);
+        // Decreate velocity based on friction
+        this.vx -= this.vx * this.friction;
+        this.vy -= this.vy * this.friction;
         // Perform physics, and collision logic
         if (this.enableCollisionResponse) {
             for (var i = 0; i < instance.getEntities().length; ++i) {
@@ -1050,8 +1073,8 @@
             }
         }
         // Update the entities position based on its velocity
-        this.x += vx * deltaTime;
-        this.y += vy * deltaTime;
+        this.x += this.vx * deltaTime;
+        this.y += this.vy * deltaTime;
     };
 
     /**
