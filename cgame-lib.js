@@ -215,7 +215,7 @@
 
         // Initializes any preferences that are necessary but weren't assigned
 
-        var mouse = {x: null, y: null};
+        var mouse = {x: null, y: null, mouseDown = false};
 
         if (!this.prefs.hasOwnProperty('timeScale')) {
             this.prefs.timeScale = 1;
@@ -304,6 +304,14 @@
         this.getBackgroundEntity = function() {
             return backgroundEntity;
         };
+
+        /**
+         * Gets the mouse object
+         * @return {Object} The mouses position and status
+         */
+        this.getMouse = function() {
+            return mouse;
+        }
 
         // Protected methods
 
@@ -451,8 +459,16 @@
                 var untransformedMouse = {}
                 untransformedMouse.x = e.clientX - rect.left;
                 untransformedMouse.y = e.clientY - rect.top;
-                mouse = instance.pointTransform(untransformedMouse);
+                var nmouse = instance.pointTransform(untransformedMouse);
+                mouse.x = nmouse.x;
+                mouse.y = nmouse.y;
             }, false);
+            instance.canvas.addEventListener('mousedown', function(e) {
+                mouse.mousedown = true;
+            });
+            instance.canvas.addEventListener('mouseup', function(e) {
+                mouse.mousedown = false;
+            });
         };
 
         /**

@@ -2,7 +2,7 @@
 var size = {width: 920, height: 520};
 game = new Game({
     canvasArangement: getCanvasArangements().lockAspectRatio,
-    lockAspectRatioSize: size, canvasId: 'display', updateInterval: 1
+    lockAspectRatioSize: size, canvasId: 'display', updateInterval: 18
 });
 
 Back.prototype = Object.create(RenderedEntity.prototype);
