@@ -1073,7 +1073,6 @@
                 entities[i].collidesWith.length === 0 || entities[i].bounds == null || this.onCollide == null) {
                 continue;
             }
-            console.log(entities[i].collisionLayer.indexOf(this.collidesWith));
             if (entities[i] instanceof BoundedEntity && entities[i].collisionLayer.indexOf(this.collidesWith) !== -1 &&
                 this.collidesWith.indexOf(entities[i].collisionLayer) !== -1 && this.bounds.collidesWith(entities[i].bounds)) {
                 this.onCollide(entities[i]);

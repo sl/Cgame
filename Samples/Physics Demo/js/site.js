@@ -1,7 +1,7 @@
 var size = {width: 920, height: 520};
 game = new Game({
 	canvasArangement: getCanvasArangements().lockAspectRatio,
-    lockAspectRatioSize: size, canvasId: 'display', updateInterval: 18
+    lockAspectRatioSize: size, canvasId: 'display', updateInterval: 1
 });
 
 var zCount = 1;
@@ -22,7 +22,6 @@ function Back() {
 PCircle.prototype = Object.create(PhysicsEntity.prototype);
 PCircle.prototype.constructor = PCircle;
 function PCircle(radius, mass) {
-	PhysicsEntity.apply(this, [{}]);
 	this.collisionLayer = 'object';
 	this.collidesWith = ['object', 'wall'];
 	this.enableCollisionResponse = true;
@@ -34,6 +33,7 @@ function PCircle(radius, mass) {
 	this.mass = mass;
 	this.restitution = 0.8;
 	this.bounds = new BoundingBox.Circle(this, radius);
+	PhysicsEntity.apply(this, [{}]);
 	this.step = function(deltaTime) {
 		this.vy -= .003 * deltaTime;
 		PhysicsEntity.prototype.step.apply(this, arguments);
@@ -53,7 +53,6 @@ function PCircle(radius, mass) {
 PRect.prototype = Object.create(PhysicsEntity.prototype);
 PRect.prototype.constructor = PRect;
 function PRect(x, y, width, height, hasGravity, mass) {
-	PhysicsEntity.apply(this, {});
 	if (hasGravity) {
 		this.collisionLayer = 'object';
 		this.collidesWith = ['object', 'wall'];
@@ -68,9 +67,10 @@ function PRect(x, y, width, height, hasGravity, mass) {
 	this.vx = 0;
 	this.vy = 0;
 	this.mass = mass;
-	this.restitution = 0.8;
+	this.restitution = 1;
 	this.bounds = new BoundingBox.AABB(this, width, height);
 	this.hasGravity = hasGravity;
+	PhysicsEntity.apply(this, {});
 	this.step = function(deltaTime) {
 		if (this.hasGravity) {
 			this.vy -= .003 * deltaTime;
@@ -86,7 +86,6 @@ function PRect(x, y, width, height, hasGravity, mass) {
 		c.fill();
 		c.stroke();
 	};
-	this.onCollide = function() {console.log('collided')};
 	this.create();
 }
 
@@ -95,5 +94,5 @@ new PRect(0, -size.height / 2, size.width, 50, false, 0);
 new PRect(-size.width / 2, 0, 50, size.height, false, 0);
 new PRect(0, size.height / 2, size.width, 50, false, 0);
 new PRect(size.width / 2, 0, 50, size.height, false, 0);
-new PCircle(30, 10);
+new PRect(0, 0, 50, 30, true, 30);
 game.startUpdating();

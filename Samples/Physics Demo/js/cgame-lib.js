@@ -550,7 +550,7 @@
             return new Vector(this.x + v.x, this.y + v.y);
         };
         this.subtract = function(v) {
-            return new Vector(this.x - v.y, this.y - v.y);
+            return new Vector(this.x - v.x, this.y - v.y);
         };
         this.divide = function(s) {
             return new Vector(this.x / s, this.y / s);
@@ -691,6 +691,9 @@
             }
             var manifold;
             var switched = false;
+            if (!e1.bounds.collidesWith(e2.bounds)) {
+                return null;
+            }
             if (e1.bounds instanceof Collision.Circle && e2.bounds instanceof Collision.Circle) {
                 manifold = Collision.getManifoldCvC(e1, e2);
             } else if (e1.bounds instanceof Collision.AABB && e2.bounds instanceof Collision.AABB) {
@@ -704,15 +707,25 @@
                 }
             }
             if (manifold == null) {
-                return;
+                return null;
             }
             if (switched) {
-                Collision.resolveCollision(e2, e1, manifold);
-                Collision.positionalCorrection(e2, e1, manifold);
-                return;
+                var resolved = Collision.resolveCollision(e2, e1, manifold);
+                if (resolved == null) {
+                    return null;
+                }
+                resolved = Collision.positionalCorrection(resolved.e1, resolved.e2, manifold);
+                var switchedResolved = {};
+                switchedResolved.e1 = resolved.e2;
+                switchedResolved.e2 = resolved.e1;
+                return switchedResolved;
             }
-            Collision.resolveCollision(e1, e2, manifold);
-            Collision.positionalCorrection(e1, e2, manifold);
+            var resolved = Collision.resolveCollision(e1, e2, manifold);
+            if (resolved == null) {
+                return null;
+            }
+            resolved = Collision.positionalCorrection(resolved.e1, resolved.e2, manifold);
+            return resolved;
         },
         /**
          * Gets the minimum of two entities restitutions
@@ -774,20 +787,20 @@
                 if (yOverlap > 0) {
                     if (xOverlap > yOverlap) {
                         if (m.n.x < 0) {
-                            m.normal = new Vector(-1, 0);
-
-                        } else {
-                            m.normal = new Vector(1, 0);
-                        }
-                        m.penetration = xOverlap;
-                        return m;
-                    } else {
-                        if (m.n.y < 0) {
                             m.normal = new Vector(0, -1);
+
                         } else {
                             m.normal = new Vector(0, 1);
                         }
                         m.penetration = yOverlap;
+                        return m;
+                    } else {
+                        if (m.n.y < 0) {
+                            m.normal = new Vector(-1, 0);
+                        } else {
+                            m.normal = new Vector(1, 0);
+                        }
+                        m.penetration = xOverlap;
                         return m;
                     }
                 }
@@ -852,10 +865,10 @@
          * @param  {Object} manifold The collision manifold
          */
         resolveCollision: function(e1, e2, manifold) {
-            var rv = e1.getVelocity().subtract(e2.getVelocity());
+            /*var rv = e1.getVelocity().subtract(e2.getVelocity());
             var velocityAlongNormal = rv.dot(manifold.normal);
             if (velocityAlongNormal > 0) {
-                return;
+                return null;
             }
             var e = Collision.minR(e1, e2);
             // J represents impulse
@@ -864,6 +877,25 @@
             var impulseVector = manifold.normal.times(j);
             e1.applyForce(impulseVector.times(-1 * e1.invMass));
             e2.applyForce(impulseVector.times(e2.invMass));
+            var resolved = {};
+            resolved.e1 = e1;
+            resolved.e2 = e2;
+            return resolved;*/
+            var rv = e1.getVelocity().subtract(e2.getVelocity());
+            var contactVelocity = rv.dot(manifold.normal);
+            if (contactVelocity > 0) {
+                return null;
+            }
+            var e = Collision.minR(e1, e2);
+            var j = -(1 + e) * contactVelocity;
+            j /= e1.invMass + e2.invMass;
+            var impulse = manifold.normal.times(j);
+            e1.applyForce(impulse.times(e1.invMass));
+            e2.applyForce(impulse.times(e2.invMass * -1));
+            var resolved = {};
+            resolved.e1 = e1;
+            resolved.e2 = e2;
+            return resolved;
         },
         /**
          * Corrects the position of two entities that have collided to stop them from sinking into eachother
@@ -875,10 +907,14 @@
             // Correction percent
             var percent = 0.2;
             // Correction threshhold
-            var slop = 0.01;
-            var correction = manifold.n.times(Math.max(manifold.penetration - slop, 0) / (e1.invMass + e2.invMass) * percent);
+            var slop = 0.1;
+            var correction = manifold.normal.times(percent * (Math.max(manifold.penetration - slop, 0) / (e1.invMass + e2.invMass)));
             e1.modifyLoc(correction.times(-1 * e1.invMass));
             e2.modifyLoc(correction.times(e2.invMass));
+            var resolved = {};
+            resolved.e1 = e1;
+            resolved.e2 = e2;
+            return resolved;
         }
     };
 
@@ -1061,7 +1097,7 @@
 
     BoundedEntity.prototype.step = function(deltaTime) {
         if (this.collisionLayer == null || this.collisionLayer === '' || this.collidesWith == null || this.collidesWith.length === 0 ||
-            this.bounds == null) {
+            this.bounds == null || this.onCollide == null) {
             return;
         }
         var entities = instance.getEntities();
@@ -1070,11 +1106,10 @@
                 continue;
             }
             if (entities[i].collisionLayer == null || entities[i].collisionLayer === '' || entities[i].collidesWith == null ||
-                entities[i].collidesWith.length === 0 || entities[i].bounds == null || this.onCollide == null) {
+                entities[i].collidesWith.length === 0 || entities[i].bounds == null) {
                 continue;
             }
-            console.log(entities[i].collisionLayer.indexOf(this.collidesWith));
-            if (entities[i] instanceof BoundedEntity && entities[i].collisionLayer.indexOf(this.collidesWith) !== -1 &&
+            if (entities[i] instanceof BoundedEntity && entities[i].collidesWith.indexOf(this.collisionLayer) !== -1 &&
                 this.collidesWith.indexOf(entities[i].collisionLayer) !== -1 && this.bounds.collidesWith(entities[i].bounds)) {
                 this.onCollide(entities[i]);
             }
@@ -1108,15 +1143,14 @@
         if (this.mass != null) {
             if (this.mass === 0) {
                 this.invMass = 0;
+            } else {
+                this.invMass = 1 / this.mass;
             }
-            this.invMass = 1 / this.mass;
-        }
-        this.collidesWith = this.collidesWith || [];
-        if (!this.hasOwnProperty('enableCollisionResponse')) {
-            this.enableCollisionResponse = false;
         }
         this.mass = this.mass || 0;
-        this.restitution = this.restitution || 1;
+        if (!this.hasOwnProperty('restitution')) {
+            this.restitution = 1;
+        }
         this.friction = this.friction || 0;
         this.vx = this.vx || 0;
         this.vy = this.vy || 0;
@@ -1138,8 +1172,19 @@
         // Perform physics, and collision logic
         if (this.enableCollisionResponse) {
             for (var i = 0; i < instance.getEntities().length; ++i) {
-                if (instance.getEntities()[i] instanceof PhysicsEntity) {
-                    Collision.checkAndResolveCollision(this, instance.getEntities()[i]);
+                if (instance.getEntities()[i] instanceof PhysicsEntity && instance.getEntities()[i].enableCollisionResponse) {
+                    var resolved = Collision.checkAndResolveCollision(this, instance.getEntities()[i]);
+                    if (resolved == null) {
+                        continue;
+                    }
+                    this.x = resolved.e1.x;
+                    this.vx = resolved.e1.vx;
+                    this.y = resolved.e1.y;
+                    this.vy = resolved.e1.vy;
+                    instance.getEntities()[i].x = resolved.e2.x;
+                    instance.getEntities()[i].vx = resolved.e2.vx;
+                    instance.getEntities()[i].y = resolved.e2.y;
+                    instance.getEntities()[i].vy = resolved.e2.vy;
                 }
             }
         }
@@ -1153,7 +1198,7 @@
      * @return {Vector} The PhysicsEntity's velocity
      */
     PhysicsEntity.prototype.getVelocity = function() {
-        return new Vector(this.x, this.y);
+        return new Vector(this.vx, this.vy);
     };
     /**
      * Sets the PhysicsEntitiy's velocity as a vector
@@ -1175,8 +1220,8 @@
             return;
         }
         if (arguments.length === 1) {
-            this.vx += arguments.x || 0;
-            this.vy += arguments.y || 0;
+            this.vx += arguments[0].x || 0;
+            this.vy += arguments[0].y || 0;
         } else if (arguments.length >= 2) {
             this.vx += arguments[0];
             this.vy += arguments[1];

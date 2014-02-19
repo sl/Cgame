@@ -161,7 +161,7 @@ function Bird() {
     this.bounds = new BoundingBox.AABB(this, 30, 15);
     this.score = new Score();
     this.step = function (deltaTime) {
-        this.vy -= .003 * deltaTime;
+        this.vy -= .002 * deltaTime;
         PhysicsEntity.prototype.step.apply(this, arguments);
         if (Math.abs(this.y) > size.height / 2) {
             this.gameover = new GameOver();
