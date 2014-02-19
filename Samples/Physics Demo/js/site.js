@@ -21,17 +21,17 @@ function Back() {
 
 PCircle.prototype = Object.create(PhysicsEntity.prototype);
 PCircle.prototype.constructor = PCircle;
-function PCircle(radius, mass) {
+function PCircle(x, y, radius, mass) {
 	this.collisionLayer = 'object';
 	this.collidesWith = ['object', 'wall'];
 	this.enableCollisionResponse = true;
-	this.x = 0;
-	this.y = 0;
+	this.x = x;
+	this.y = y;
 	this.z = zCount++;
 	this.vx = 0;
 	this.vy = 0;
 	this.mass = mass;
-	this.restitution = 0.8;
+	this.restitution = 1;
 	this.bounds = new BoundingBox.Circle(this, radius);
 	PhysicsEntity.apply(this, [{}]);
 	this.step = function(deltaTime) {
@@ -64,10 +64,10 @@ function PRect(x, y, width, height, hasGravity, mass) {
 	this.x = x;
 	this.y = y;
 	this.z = zCount++;
-	this.vx = 0;
+	this.vx = /*hasGravity ? 1 : */0;
 	this.vy = 0;
 	this.mass = mass;
-	this.restitution = 1;
+	this.restitution = 0.25;
 	this.bounds = new BoundingBox.AABB(this, width, height);
 	this.hasGravity = hasGravity;
 	PhysicsEntity.apply(this, {});
@@ -94,5 +94,23 @@ new PRect(0, -size.height / 2, size.width, 50, false, 0);
 new PRect(-size.width / 2, 0, 50, size.height, false, 0);
 new PRect(0, size.height / 2, size.width, 50, false, 0);
 new PRect(size.width / 2, 0, 50, size.height, false, 0);
-new PRect(0, 0, 50, 30, true, 30);
+//new PRect(0, 0, 50, 30, true, 30);
+//new PCircle(20, 200, 30, 30);
 game.startUpdating();
+document.addEventListener('keydown', function(e) {
+    if (e.keyCode === 65) {
+        new PRect(game.getMouse().x, game.getMouse().y, 60, 60, true, 30);
+    } else if (e.keyCode === 83) {
+        new PCircle(game.getMouse().x, game.getMouse().y, 30, 30);
+    } else if (e.keyCode === 82) {
+        var del = [];
+        for (var i = 5; i < game.getEntities().length; ++i) {
+            del.push(game.getEntities()[i]);
+        }
+        for (var i = 0; i < del.length; ++i) {
+            del[i].destroy();
+        }
+    } else if (e.keyCode === 68) {
+        new PRect(game.getMouse().x, game.getMouse().y, 60, 60, true, 5000000);
+    }
+}, false);

@@ -550,7 +550,7 @@
             return new Vector(this.x + v.x, this.y + v.y);
         };
         this.subtract = function(v) {
-            return new Vector(this.x - v.y, this.y - v.y);
+            return new Vector(this.x - v.x, this.y - v.y);
         };
         this.divide = function(s) {
             return new Vector(this.x / s, this.y / s);
@@ -561,40 +561,32 @@
         this.dot = function(v) {
             return this.x * v.x + this.y * v.y;
         };
+        this.toUnitVector = function() {
+            var mag = this.getMagnitude();
+            return new Vector(this.x / mag, this.y / mag);
+        }
     };
 
     // Collision logic
 
     var AABBcollidesWithCircle = function(aabb, c) {
-        var A = new Vector(aabb.parent.x, aabb.parent.y);
-        var B = new Vector(c.parent.x, c.parent.y);
-        var n = B.subtract(A);
-        var closest = n;
-        var xExtent = aabb.width / 2;
-        var yExtent = aabb.height / 2;
-        closest.x = Util.clamp(-xExtent, xExtent, closest.x);
-        closest.y = Util.clamp(-yExtent, yExtent, closest.y);
-        var inside = false;
-        if (n.x === closest.x && n.y === closest.y) {
-            inside = true;
-            if (Math.abs(n.x) > Math.abs(n.y)) {
-                if (closest.x > 0) {
-                    closest.x = xExtent;
-                } else {
-                    closest.x = -xExtent;
-                }
-            } else {
-                if (closest.y > 0) {
-                    closest.y = yExtent;
-                } else {
-                    closest.y = -yExtent;
-                }
-            }
+        var circleDistance = {};
+        circleDistance.x = Math.abs(c.parent.x - aabb.parent.x);
+        circleDistance.y = Math.abs(c.parent.y - aabb.parent.y);
+        if (circleDistance.x > (aabb.width / 2 + c.radius)) {
+            return false;
         }
-        var normal = n.subtract(closest);
-        d = normal.getMagnitudeSquared();
-        var r = c.radius;
-        return !(d > r * r && !inside);
+        if (circleDistance.y > (aabb.height / 2 + c.radius)) {
+            return false;
+        }
+        if (circleDistance.x <= (aabb.width / 2)) {
+            return true;
+        }
+        if (circleDistance.y <= (aabb.height / 2)) {
+            return true;
+        }
+        var cornerDistSquared = Math.pow(circleDistance.x - aabb.width / 2, 2) + Math.pow(circleDistance.y - aabb.height / 2, 2);
+        return cornerDistSquared <= Math.pow(c.radius, 2);
     };
 
     /**
@@ -691,12 +683,15 @@
             }
             var manifold;
             var switched = false;
+            if (!e1.bounds.collidesWith(e2.bounds)) {
+                return null;
+            }
             if (e1.bounds instanceof Collision.Circle && e2.bounds instanceof Collision.Circle) {
                 manifold = Collision.getManifoldCvC(e1, e2);
             } else if (e1.bounds instanceof Collision.AABB && e2.bounds instanceof Collision.AABB) {
                 manifold = Collision.getManifoldAABBvAABB(e1, e2);
             } else {
-                if (e1 instanceof Collision.AABB) {
+                if (e1.bounds instanceof Collision.AABB) {
                     manifold = Collision.getManifoldAABBvC(e1, e2);
                 } else {
                     manifold = Collision.getManifoldAABBvC(e2, e1);
@@ -704,15 +699,25 @@
                 }
             }
             if (manifold == null) {
-                return;
+                return null;
             }
             if (switched) {
-                Collision.resolveCollision(e2, e1, manifold);
-                Collision.positionalCorrection(e2, e1, manifold);
-                return;
+                var resolved = Collision.resolveCollision(e2, e1, manifold);
+                if (resolved == null) {
+                    return null;
+                }
+                resolved = Collision.positionalCorrection(resolved.e1, resolved.e2, manifold);
+                var switchedResolved = {};
+                switchedResolved.e1 = resolved.e2;
+                switchedResolved.e2 = resolved.e1;
+                return switchedResolved;
             }
-            Collision.resolveCollision(e1, e2, manifold);
-            Collision.positionalCorrection(e1, e2, manifold);
+            var resolved = Collision.resolveCollision(e1, e2, manifold);
+            if (resolved == null) {
+                return null;
+            }
+            resolved = Collision.positionalCorrection(resolved.e1, resolved.e2, manifold);
+            return resolved;
         },
         /**
          * Gets the minimum of two entities restitutions
@@ -743,7 +748,7 @@
             d = m.n.getMagnitude();
             if (d !== 0) {
                 m.penetration = r - d;
-                m.normal = m.n.divide(d);
+                m.normal = m.n.toUnitVector().times(-1);
                 return m;
             } else {
                 m.penetration = m.A.radius;
@@ -773,21 +778,20 @@
                 var yOverlap = aExtent + bExtent - Math.abs(m.n.y);
                 if (yOverlap > 0) {
                     if (xOverlap > yOverlap) {
-                        if (m.n.x < 0) {
-                            m.normal = new Vector(-1, 0);
-
-                        } else {
-                            m.normal = new Vector(1, 0);
-                        }
-                        m.penetration = xOverlap;
-                        return m;
-                    } else {
-                        if (m.n.y < 0) {
+                        if (m.n.y > 0) {
                             m.normal = new Vector(0, -1);
                         } else {
                             m.normal = new Vector(0, 1);
                         }
                         m.penetration = yOverlap;
+                        return m;
+                    } else {
+                        if (m.n.x > 0) {
+                            m.normal = new Vector(-1, 0);
+                        } else {
+                            m.normal = new Vector(1, 0);
+                        }
+                        m.penetration = xOverlap;
                         return m;
                     }
                 }
@@ -805,11 +809,11 @@
             m.A = new Vector(aabb.x, aabb.y);
             m.B = new Vector(c.x, c.y);
             m.n = m.B.subtract(m.A);
-            var closest = m.n;
             var xExtent = aabb.bounds.width / 2;
             var yExtent = aabb.bounds.height / 2;
-            closest.x = Util.clamp(-xExtent, xExtent, closest.x);
-            closest.y = Util.clamp(-yExtent, yExtent, closest.y);
+            var closest = {};
+            closest.x = Util.clamp(c.x, aabb.bounds.min().x, aabb.bounds.max().x);
+            closest.y = Util.clamp(c.y, aabb.bounds.min().y, aabb.bounds.max().y);
             var inside = false;
             // If circle is inside AABB, clamp circles center to closest edge
             if (m.n.x === closest.x && m.n.y === closest.y) {
@@ -829,20 +833,20 @@
                     }
                 }
             }
-            var normal = m.n.subtract(closest);
+            /*var normal = m.n.subtract(closest);
             var d = normal.getMagnitudeSquared();
             var r = c.bounds.radius;
-            // Bail early if the circle is not inside the AABB
-            if (d > r * r && !inside) {
-                return null;
-            }
-            d = Math.sqrt(d);
+            d = Math.sqrt(d);*/
+            var normal = new Vector(closest.x - c.x, closest.y - c.y);
+            var cache = normal;
+            var d = normal.getMagnitude();
+            normal = normal.toUnitVector();
+            var r = c.bounds.radius;
             if (inside) {
                 m.normal = normal.times(-1);
-            } else {
-                m.normal = m.n;
             }
-            m.penetration = r + d;
+            m.normal = normal;
+            m.penetration = r - d;
             return m;
         },
         /**
@@ -852,10 +856,10 @@
          * @param  {Object} manifold The collision manifold
          */
         resolveCollision: function(e1, e2, manifold) {
-            var rv = e1.getVelocity().subtract(e2.getVelocity());
+            /*var rv = e1.getVelocity().subtract(e2.getVelocity());
             var velocityAlongNormal = rv.dot(manifold.normal);
             if (velocityAlongNormal > 0) {
-                return;
+                return null;
             }
             var e = Collision.minR(e1, e2);
             // J represents impulse
@@ -864,6 +868,27 @@
             var impulseVector = manifold.normal.times(j);
             e1.applyForce(impulseVector.times(-1 * e1.invMass));
             e2.applyForce(impulseVector.times(e2.invMass));
+            var resolved = {};
+            resolved.e1 = e1;
+            resolved.e2 = e2;
+            return resolved;*/
+            // Floating point error correction threshold
+
+            var rv = e1.getVelocity().subtract(e2.getVelocity());
+            var contactVelocity = rv.dot(manifold.normal);
+            if (contactVelocity > 0) {
+                return null;
+            }
+            var e = Collision.minR(e1, e2);
+            var j = -(1 + e) * contactVelocity;
+            j /= e1.invMass + e2.invMass;
+            var impulse = manifold.normal.times(j);
+            e1.applyForce(impulse.times(e1.invMass));
+            e2.applyForce(impulse.times(e2.invMass * -1));
+            var resolved = {};
+            resolved.e1 = e1;
+            resolved.e2 = e2;
+            return resolved;
         },
         /**
          * Corrects the position of two entities that have collided to stop them from sinking into eachother
@@ -876,9 +901,13 @@
             var percent = 0.2;
             // Correction threshhold
             var slop = 0.01;
-            var correction = manifold.n.times(Math.max(manifold.penetration - slop, 0) / (e1.invMass + e2.invMass) * percent);
-            e1.modifyLoc(correction.times(-1 * e1.invMass));
-            e2.modifyLoc(correction.times(e2.invMass));
+            var correction = manifold.normal.times(percent * (Math.max(manifold.penetration - slop, 0) / (e1.invMass + e2.invMass)));
+            e1.modifyLoc(correction.times(e1.invMass));
+            e2.modifyLoc(correction.times(-1 * e2.invMass));
+            var resolved = {};
+            resolved.e1 = e1;
+            resolved.e2 = e2;
+            return resolved;
         }
     };
 
@@ -1061,7 +1090,7 @@
 
     BoundedEntity.prototype.step = function(deltaTime) {
         if (this.collisionLayer == null || this.collisionLayer === '' || this.collidesWith == null || this.collidesWith.length === 0 ||
-            this.bounds == null) {
+            this.bounds == null || this.onCollide == null) {
             return;
         }
         var entities = instance.getEntities();
@@ -1070,10 +1099,10 @@
                 continue;
             }
             if (entities[i].collisionLayer == null || entities[i].collisionLayer === '' || entities[i].collidesWith == null ||
-                entities[i].collidesWith.length === 0 || entities[i].bounds == null || this.onCollide == null) {
+                entities[i].collidesWith.length === 0 || entities[i].bounds == null) {
                 continue;
             }
-            if (entities[i] instanceof BoundedEntity && entities[i].collisionLayer.indexOf(this.collidesWith) !== -1 &&
+            if (entities[i] instanceof BoundedEntity && entities[i].collidesWith.indexOf(this.collisionLayer) !== -1 &&
                 this.collidesWith.indexOf(entities[i].collisionLayer) !== -1 && this.bounds.collidesWith(entities[i].bounds)) {
                 this.onCollide(entities[i]);
             }
@@ -1107,15 +1136,14 @@
         if (this.mass != null) {
             if (this.mass === 0) {
                 this.invMass = 0;
+            } else {
+                this.invMass = 1 / this.mass;
             }
-            this.invMass = 1 / this.mass;
-        }
-        this.collidesWith = this.collidesWith || [];
-        if (!this.hasOwnProperty('enableCollisionResponse')) {
-            this.enableCollisionResponse = false;
         }
         this.mass = this.mass || 0;
-        this.restitution = this.restitution || 1;
+        if (!this.hasOwnProperty('restitution')) {
+            this.restitution = 1;
+        }
         this.friction = this.friction || 0;
         this.vx = this.vx || 0;
         this.vy = this.vy || 0;
@@ -1137,8 +1165,19 @@
         // Perform physics, and collision logic
         if (this.enableCollisionResponse) {
             for (var i = 0; i < instance.getEntities().length; ++i) {
-                if (instance.getEntities()[i] instanceof PhysicsEntity) {
-                    Collision.checkAndResolveCollision(this, instance.getEntities()[i]);
+                if (instance.getEntities()[i] instanceof PhysicsEntity && instance.getEntities()[i].enableCollisionResponse) {
+                    var resolved = Collision.checkAndResolveCollision(this, instance.getEntities()[i]);
+                    if (resolved == null) {
+                        continue;
+                    }
+                    this.x = resolved.e1.x;
+                    this.vx = resolved.e1.vx;
+                    this.y = resolved.e1.y;
+                    this.vy = resolved.e1.vy;
+                    instance.getEntities()[i].x = resolved.e2.x;
+                    instance.getEntities()[i].vx = resolved.e2.vx;
+                    instance.getEntities()[i].y = resolved.e2.y;
+                    instance.getEntities()[i].vy = resolved.e2.vy;
                 }
             }
         }
@@ -1152,7 +1191,7 @@
      * @return {Vector} The PhysicsEntity's velocity
      */
     PhysicsEntity.prototype.getVelocity = function() {
-        return new Vector(this.x, this.y);
+        return new Vector(this.vx, this.vy);
     };
     /**
      * Sets the PhysicsEntitiy's velocity as a vector
@@ -1174,8 +1213,8 @@
             return;
         }
         if (arguments.length === 1) {
-            this.vx += arguments.x || 0;
-            this.vy += arguments.y || 0;
+            this.vx += arguments[0].x || 0;
+            this.vy += arguments[0].y || 0;
         } else if (arguments.length >= 2) {
             this.vx += arguments[0];
             this.vy += arguments[1];
