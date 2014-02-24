@@ -17,9 +17,24 @@ function Back() {
         c.fillStyle = '573B0C';
         c.rect(-size.width / 2, -size.height / 2, size.width, 30);
         c.fill();
-    }
+    };
     this.create();
     this.z = 1;
+}
+
+Pause.prototype = Object.create(RenderedEntity.prototype);
+Pause.prototype.constructor = Pause;
+function Pause() {
+    this.render = function(c) {
+        if (game.isPaused() && player.gameover == null) {
+            c.beginPath();
+            c.rect(-size.width / 2, -size.height / 2, size.width, size.height);
+            c.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            c.fill();
+        }
+    };
+    this.create();
+    this.z = 20;
 }
 
 GameOver.prototype = Object.create(RenderedEntity.prototype);
@@ -161,7 +176,7 @@ function Bird() {
     this.bounds = new BoundingBox.AABB(this, 30, 15);
     this.score = new Score();
     this.step = function (deltaTime) {
-        this.vy -= .002 * deltaTime;
+        this.vy -= .003 * deltaTime;
         PhysicsEntity.prototype.step.apply(this, arguments);
         if (Math.abs(this.y) > size.height / 2) {
             this.gameover = new GameOver();
@@ -223,14 +238,30 @@ function Bird() {
 player = new Bird();
 new Back();
 new Pipe({});
+new Pause();
 game.startUpdating();
 game.canvas.addEventListener('mousedown', function() {
+    playerInput();
+}, false);
+document.addEventListener('keydown', function(e) {
+    if (e.keyCode === 27 && player.gameover == null) {
+        if (game.isPaused()) {
+            game.unpause();
+        } else {
+            game.pause();
+        }
+    } else {
+        playerInput();
+    }
+}, false);
+function playerInput() {
     if (player.gameover != null) {
         player.gameover.destroy();
         player.gameover = null;
         player.reset();
         game.unpause();
+    } else if (!game.isPaused()) {
+        player.vy = 0.6;
     }
-    player.vy = .6;
-}, false);
+}
 

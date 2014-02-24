@@ -150,6 +150,17 @@
             coords.width = Math.abs(coords.width);
             coords.height = Math.abs(coords.height);
             return coords;
+        },
+        sortZ: function(a, b) {
+            if (a.hasOwnProperty('z') && b.hasOwnProperty('z')) {
+                return (a.z - b.z);
+            } else if (a.hasOwnProperty('z')) {
+                return 1;
+            } else if (b.hasOwnProperty('z')) {
+                return -1;
+            } else {
+                return 0;
+            }
         }
     };
 
@@ -413,17 +424,7 @@
          * Sorts the list of all entities from low to high by their z index values
          */
         p[id(this)].sortEntitiesByZIndex = function() {
-            entities.sort(function(a, b) {
-                if (a.hasOwnProperty('z') && b.hasOwnProperty('z')) {
-                    return (a.z - b.z);
-                } else if (a.hasOwnProperty('z')) {
-                    return 1;
-                } else if (b.hasOwnProperty('z')) {
-                    return -1;
-                } else {
-                    return 0;
-                }
-            });
+            entities.sort(Util.sortZ);
         };
 
         /**
@@ -464,10 +465,10 @@
                 mouse.y = nmouse.y;
             }, false);
             instance.canvas.addEventListener('mousedown', function(e) {
-                mouse.mousedown = true;
+                mouse.mouseDown = true;
             });
             instance.canvas.addEventListener('mouseup', function(e) {
-                mouse.mousedown = false;
+                mouse.mouseDown = false;
             });
         };
 
@@ -622,6 +623,7 @@
                 if (p.x < this.max().x && p.x > this.min().x && p.y < this.max().y && p.y > this.min().y) {
                     return true;
                 }
+                return false;
             };
         },
         /**
@@ -643,10 +645,11 @@
             };
             this.isPointInside = function(p) {
                 var rSquared = this.radius * this.radius;
-                var dSquared = Math.pow(this.x - p.x, 2) + Math.pow(this.y - p.y, 2);
+                var dSquared = Math.pow(this.parent.x - p.x, 2) + Math.pow(this.parent.y - p.y, 2);
                 if (dSquared < rSquared) {
                     return true;
                 }
+                return false;
             };
         }
     };
@@ -717,6 +720,8 @@
                 return null;
             }
             resolved = Collision.positionalCorrection(resolved.e1, resolved.e2, manifold);
+            if (e1.bounds instanceof Collision.Circle && e2.bounds instanceof Collision.Circle) {
+            }
             return resolved;
         },
         /**
@@ -739,10 +744,9 @@
             m.A = new Vector(e1.x, e1.y);
             m.B = new Vector(e2.x, e2.y);
             m.n = m.B.subtract(m.A);
-            var r = e1.radius + e2.radius;
-            r *= r;
+            var r = e1.bounds.radius + e2.bounds.radius;
             var d;
-            if (m.n.getMagnitudeSquared() > r) {
+            if (m.n.getMagnitudeSquared() > r * r) {
                 return null;
             }
             d = m.n.getMagnitude();
@@ -751,7 +755,7 @@
                 m.normal = m.n.toUnitVector().times(-1);
                 return m;
             } else {
-                m.penetration = m.A.radius;
+                m.penetration = e1.radius;
                 m.normal = new Vector(1, 0);
                 return m;
             }
@@ -898,12 +902,14 @@
          */
         positionalCorrection: function(e1, e2, manifold) {
             // Correction percent
-            var percent = 0.2;
+            var percent = 1.01;
             // Correction threshhold
             var slop = 0.01;
             var correction = manifold.normal.times(percent * (Math.max(manifold.penetration - slop, 0) / (e1.invMass + e2.invMass)));
             e1.modifyLoc(correction.times(e1.invMass));
             e2.modifyLoc(correction.times(-1 * e2.invMass));
+           // e1.modifyLoc(Math.random() * 0.001 - 0.0005, Math.random() * 0.001 - 0.0005);
+           // e2.modifyLoc(Math.random() * 0.001 - 0.0005, Math.random() * 0.001 - 0.0005);
             var resolved = {};
             resolved.e1 = e1;
             resolved.e2 = e2;
@@ -1219,6 +1225,43 @@
             this.vx += arguments[0];
             this.vy += arguments[1];
         }
+    };
+
+    /**
+     * Sets the objects mass, and conserves momentum. If the original mass was infinite, velocity will not be affected
+     * @param {[type]} mass [description]
+     */
+    PhysicsEntity.prototype.setMassAndConserve = function(mass) {
+        if (this.mass === mass) {
+            return;
+        }
+        if (this.mass === 0) {
+            this.setMass(mass);
+            return;
+        }
+        if (mass === 0) {
+            this.setMass(mass);
+            this.vx = 0;
+            this.vy = 0;
+        }
+        var pX = this.mass * this.vx;
+        var pY = this.mass * this.vy;
+        this.setMass(mass);
+        this.vx = pX / this.mass;
+        this.vy = pY / this.mass;
+    };
+
+    /**
+     * Sets the objects mass, the objects other properties are not affected
+     * To conservere momentum with the addition of mass, use setMassAndConserve(mass)
+     * @param {Number} mass The objects new mass
+     */
+    PhysicsEntity.prototype.setMass = function(mass) {
+        if (this.mass === mass) {
+            return;
+        }
+        this.mass = mass;
+        this.invMass = (mass === 0 ? 0 : 1 / mass);
     };
 
 })();
