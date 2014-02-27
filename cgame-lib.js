@@ -869,8 +869,8 @@
             var j = -(1 + e) * contactVelocity;
             j /= e1.invMass + e2.invMass;
             var impulse = manifold.normal.times(j);
-            e1.applyForce(impulse.times(e1.invMass));
-            e2.applyForce(impulse.times(e2.invMass * -1));
+            e1.applyAcceleration(impulse.times(e1.invMass));
+            e2.applyAcceleration(impulse.times(e2.invMass * -1));
             var resolved = {};
             resolved.e1 = e1;
             resolved.e2 = e2;
@@ -1196,7 +1196,7 @@
      * If passed a single object, will modify the x and y velicities by the amount given in {Object}.x and {Object}.y
      * If passed two arguments, will use on as the change in  x velocity, and one as the y velocity
      */
-    PhysicsEntity.prototype.applyForce = function() {
+    PhysicsEntity.prototype.applyAcceleration = function() {
         if (arguments.length === 0) {
             return;
         }
