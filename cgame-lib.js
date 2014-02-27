@@ -860,24 +860,6 @@
          * @param  {Object} manifold The collision manifold
          */
         resolveCollision: function(e1, e2, manifold) {
-            /*var rv = e1.getVelocity().subtract(e2.getVelocity());
-            var velocityAlongNormal = rv.dot(manifold.normal);
-            if (velocityAlongNormal > 0) {
-                return null;
-            }
-            var e = Collision.minR(e1, e2);
-            // J represents impulse
-            var j = -(1 + e) * velocityAlongNormal;
-            j /= e1.invMass + e2.invMass;
-            var impulseVector = manifold.normal.times(j);
-            e1.applyForce(impulseVector.times(-1 * e1.invMass));
-            e2.applyForce(impulseVector.times(e2.invMass));
-            var resolved = {};
-            resolved.e1 = e1;
-            resolved.e2 = e2;
-            return resolved;*/
-            // Floating point error correction threshold
-
             var rv = e1.getVelocity().subtract(e2.getVelocity());
             var contactVelocity = rv.dot(manifold.normal);
             if (contactVelocity > 0) {
@@ -1166,8 +1148,8 @@
         // Call the superclasses step function
         BoundedEntity.prototype.step.apply(this, arguments);
         // Decreate velocity based on friction
-        this.vx -= this.vx * this.friction;
-        this.vy -= this.vy * this.friction;
+        this.vx -= this.vx * this.friction * deltaTime;
+        this.vy -= this.vy * this.friction * deltaTime;
         // Perform physics, and collision logic
         if (this.enableCollisionResponse) {
             for (var i = 0; i < instance.getEntities().length; ++i) {
