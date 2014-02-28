@@ -21,7 +21,7 @@ function Back() {
     this.create();
 }
 
-Pocket.prototype = Object.create(PhysicsEntity.prototype);
+Pocket.prototype = Object.create(BoundedEntity.prototype);
 Pocket.prototype.constructor = Pocket;
 function Pocket(x, y) {
 	this.collisionLayer = 'pocket';
@@ -30,13 +30,17 @@ function Pocket(x, y) {
 	this.y = y;
 	this.bounds = new BoundingBox.Circle(this, 40);
 	this.z = 10000;
-	PhysicsEntity.apply(this, [{}]);
+	BoundedEntity.apply(this, [{}]);
 	this.render = function(c) {
 		c.beginPath();
 		c.arc(this.x, this.y, this.bounds.radius, 0, 2 * Math.PI, false);
 		c.fillStyle = 'black';
 		c.fill();
 	};
+	this.onCollide = function(e) {
+		e.destroy();
+	};
+	this.isPocket = true;
 	this.create();
 }
 
@@ -46,7 +50,13 @@ function MouseWatcher() {
 	var downLoc = null;
 	var upLoc = null;
 	this.step = function(deltaTime) {
-
+		if (game.getMouse().mouseDown && downLoc === null) {
+			downLoc = { x: game.getMouse().x, y: game.getMouse().y };
+		}
+		if (downLoc !== null && !game.getMouse().mouseDown) {
+			downLoc = null;
+			upLoc = { x: game.getMouse().x, y: game.getMouse().y };
+		}
 	}
 	this.create();
 }
@@ -248,10 +258,10 @@ function shuffle(array) {
   return array;
 }
 
-game.canvas.addEventListener('mousedown', function(e) {
+/*game.canvas.addEventListener('mousedown', function(e) {
 	var entity = getMouseEntity();
 	if (entity != null) {
 		entity.grabbed = true;
 	}
-});
+});*/
 
