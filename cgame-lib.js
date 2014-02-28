@@ -269,7 +269,7 @@
         this.pause = function() {
             paused = true;
             for (var i = 0; i < entities.length; ++i) {
-                if (entities[i].hasOwnProperty('onPause')) {
+                if ('onPause' in entities[i]) {
                     entities[i].onPause();
                 }
             }
@@ -281,7 +281,7 @@
         this.unpause = function() {
             paused = false;
             for (var i = 0; i < entities.length; ++i) {
-                if (entities[i].hasOwnProperty('onUnpause')) {
+                if ('onUnpause' in entities[i]) {
                     entities[i].onUnpause();
                 }
             }
@@ -351,7 +351,7 @@
                 foregroundEntity = entity;
                 return true;
             }
-            if (foregroundEntity.hasOwnProperty('onResignForegroundRequest')) {
+            if ('onResignForegroundRequest' in foregroundEntity) {
                 if (foregroundEntity.onResignForegroundRequest(entity)) {
                     foregroundEntity = entity;
                     return true;
@@ -370,7 +370,7 @@
             }
             foregroundEntity = null;
             for (var i = 0; i < entities.length; ++i) {
-                if (entities[i].hasOwnProperty('onForegroundAvailable')) {
+                if ('onForegroundAvailable' in entities[i]) {
                     if (entities[i].onForegroundAvailable()) {
                         if (p[id(instance)].requestForeground(entities[i])) {
                             return entities[i];
@@ -391,7 +391,7 @@
                 backgroundEntity = entity;
                 return true;
             }
-            if (backgroundEntity.hasOwnProperty('onResignBackgroundRequest')) {
+            if ('onResignBackgroundRequest' in backgroundEntity) {
                 if (backgroundEntity.onResignBackgroundRequest(entity)) {
                     backgroundEntity = entity;
                     return true;
@@ -410,7 +410,7 @@
             }
             backgroundEntity = null;
             for (var i = 0; i < entities.length; ++i) {
-                if (entities[i].hasOwnProperty('onBackgroundAvailable')) {
+                if ('onBackgroundAvailable' in entities[i]) {
                     if (entities[i].onBackgroundAvailable()) {
                         if (p[id(instance)].requestBackground(entities[i])) {
                             return entities[i];
@@ -497,7 +497,7 @@
          */
         p[id(this)].step = function(deltaTime) {
             for (var i = 0; i < entities.length; ++i) {
-                if (entities[i].hasOwnProperty('step')) {
+                if ('step' in entities[i]) {
                     if (!instance.isPaused() || entities[i].stepWhenPaused) {
                         entities[i].step(deltaTime);
                     }
@@ -512,7 +512,7 @@
          */
         p[id(this)].render = function(c) {
             // Render the background entity
-            if (backgroundEntity !== null && backgroundEntity.hasOwnProperty('render')) {
+            if (backgroundEntity !== null && 'render' in backgroundEntity) {
                 c.save();
                 backgroundEntity.render(c);
                 c.restore();
@@ -521,14 +521,14 @@
             p[id(instance)].sortEntitiesByZIndex();
             // Render all of the entities excluding the background and foreground entities
             for (var i = 0; i < entities.length; ++i) {
-                if (entities[i] !== backgroundEntity && entities[i] !== foregroundEntity) {
+                if (entities[i] !== backgroundEntity && entities[i] !== foregroundEntity && 'render' in entities[i]) {
                     c.save();
                     entities[i].render(c);
                     c.restore();
                 }
             }
             // Render the foreground entity
-            if (foregroundEntity !== null && foregroundEntity.hasOwnProperty('render')) {
+            if (foregroundEntity !== null && 'render' in foregroundEntity) {
                 c.save();
                 foregroundEntity.render(c);
                 c.restore();
@@ -947,7 +947,7 @@
      * @return {Boolean} If the entity successfully took control of the foreground
      */
     RenderedEntity.prototype.requestForeground = function() {
-        if (!this.hasOwnProperty('render')) {
+        if (!('render' in this)) {
             return;
         }
         return p[id(instance)].requestForeground(this);
@@ -965,7 +965,7 @@
      * @return {Boolean} If the entity successfully took control of the background
      */
     RenderedEntity.prototype.requestBackground = function() {
-        if (!this.hasOwnProperty('render')) {
+        if (!('render' in this)) {
             return;
         }
         return p[id(instance)].requestBackground(this);
@@ -1129,7 +1129,7 @@
             }
         }
         this.mass = this.mass || 0;
-        if (!this.hasOwnProperty('restitution')) {
+        if (!('restitution' in this)) {
             this.restitution = 1;
         }
         this.friction = this.friction || 0;
@@ -1210,7 +1210,7 @@
     };
 
     /**
-     * Sets the objects mass, and conserves momentum. If the original mass was infinite, velocity will not be affected
+     * Sets the objects mass, and conserves linear momentum. If the original mass was infinite, velocity will not be affected
      * @param {[type]} mass [description]
      */
     PhysicsEntity.prototype.setMassAndConserve = function(mass) {
