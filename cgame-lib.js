@@ -562,6 +562,9 @@
         this.dot = function(v) {
             return this.x * v.x + this.y * v.y;
         };
+        this.project = function(v) {
+            return this.dot(v).divide(this.getMagnitude());
+        };
         this.toUnitVector = function() {
             var mag = this.getMagnitude();
             return new Vector(this.x / mag, this.y / mag);
