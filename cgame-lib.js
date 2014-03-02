@@ -73,14 +73,18 @@
                         game.prefs.lockAspectRatioSize.height);
                     game.context.clip();
                     if (game.pointTransform == null) {
-                        game.pointTransform = function(point) {
+                        game.pointTransform = new PointTransform();
+                        game.pointTransform.addOther(function(point) {
                             var s = Math.min(instance.canvas.height / instance.prefs.lockAspectRatioSize.height, instance.canvas.width / instance.prefs.lockAspectRatioSize.width);
                             var nx = point.x - (instance.canvas.width / 2 | 0);
                             var ny = point.y - (instance.canvas.height / 2 | 0);
                             nx = nx / s;
                             ny = ny / -s;
                             return {x: nx, y: ny};
-                        };
+                        });
+                        if ('addCustomTransforms' in game.prefs) {
+                            game.prefs.addCustomTransforms(game);
+                        }
                     }
                 } else {
                     throw new PreferenceException('lockAspectRatioSize',
@@ -96,11 +100,14 @@
                 game.canvas.height = window.innerHeight();
                 game.context.scale(1, -1);
                 if (game.pointTransform == null) {
-                    game.pointTransform = function(point) {
+                    game.pointTransform.addOther(function(point) {
                         var ret = point;
                         ret.y *= -1;
                         return ret;
-                    };
+                    });
+                    if ('addCustomTransforms' in game.prefs) {
+                        game.prefs.addCustomTransforms(game);
+                    }
                 }
             },
             /**
@@ -119,11 +126,14 @@
                     game.canvas.height = game.prefs.fixedSizeArangementSize.height;
                     game.context.scale(1, -1);
                     if (game.pointTransform == null) {
-                        game.pointTransform = function(point) {
+                        game.pointTransform.addOther(function(point) {
                             var ret = point;
                             ret.y *= -1;
                             return ret;
-                        };
+                        });
+                        if ('addCustomTransforms' in game.prefs) {
+                            game.prefs.addCustomTransforms(game);
+                        }
                     }
                 }
             }
@@ -161,6 +171,43 @@
             } else {
                 return 0;
             }
+        },
+        distSquared: function(a, b) {
+            return Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2);
+        },
+        dist: function(a, b) {
+            return Math.sqrt(Util.distSquared(a, b));
+        }
+    };
+
+    function PointTransform() {
+        var operations = [];
+        this.transformPoint = function(point) {
+            var newPoint = point;
+            //for (var i = operations.length - 1; i >= 0; --i) {
+            for (var i = 0; i < operations.length; ++i) {
+                newPoint = operations[i](newPoint);
+            }
+            return newPoint;
+        };
+        this.addScale = function(x, y) {
+            operations.push(function(point) {
+                var np = {};
+                np.x = point.x / x;
+                np.y = point.y / y;
+                return np;
+            });
+        };
+        this.addTranslate = function(x, y) {
+            operations.push(function(point) {
+                var np = {};
+                np.x = point.x - x;
+                np.y = point.y - y;
+                return np;
+            });
+        };
+        this.addOther = function(f) {
+            operations.push(f);
         }
     };
 
@@ -226,7 +273,7 @@
 
         // Initializes any preferences that are necessary but weren't assigned
 
-        var mouse = {x: null, y: null, mouseDown: false};
+        var mouse = { x: null, y: null, mouseDown: false, getLoc: function() { return new Vector(this.x, this.y); } };
 
         if (!this.prefs.hasOwnProperty('timeScale')) {
             this.prefs.timeScale = 1;
@@ -460,7 +507,7 @@
                 var untransformedMouse = {}
                 untransformedMouse.x = e.clientX - rect.left;
                 untransformedMouse.y = e.clientY - rect.top;
-                var nmouse = instance.pointTransform(untransformedMouse);
+                var nmouse = instance.pointTransform.transformPoint(untransformedMouse);
                 mouse.x = nmouse.x;
                 mouse.y = nmouse.y;
             }, false);
@@ -485,6 +532,15 @@
             // Render all entities now that the canvas has been transformed
             p[id(instance)].render(instance.context);
             // Restore the context
+            if (game.prefs.debugMouse) {
+                instance.context.beginPath();
+                instance.context.arc(game.getMouse().x, game.getMouse().y, 5, 0, Math.PI * 2, false);
+                instance.context.fillStyle = 'black';
+                instance.context.fill();
+                instance.context.beginPath();
+                instance.context.arc(0, 0, 5, 0, Math.PI * 2, false);
+                instance.context.fill();
+            }
             instance.context.restore();
             // Schedule the next update with the DOM
             if (instance.shouldContinueUpdateCycle()) {
@@ -562,13 +618,16 @@
         this.dot = function(v) {
             return this.x * v.x + this.y * v.y;
         };
-        this.project = function(v) {
-            return this.dot(v).divide(this.getMagnitude());
+        this.projectionMagnitude = function(v) {
+            return this.dot(v) / this.getMagnitude();
         };
         this.toUnitVector = function() {
             var mag = this.getMagnitude();
             return new Vector(this.x / mag, this.y / mag);
-        }
+        };
+        this.toFixedLengthVector = function(n) {
+            return this.toUnitVector().times(n);
+        };
     };
 
     // Collision logic
@@ -934,7 +993,7 @@
 
     /**
      * Creates an entity that can be rendered to the canvas
-     * @param {Object} properties The properties to initialize the RenderedEntity with
+     * @param {Object} properties The properties to initialize the  with
      *                            {Object}.x  The x location
      *                            {Object}.y  The y location
      *                            {Object}.z  The z index
@@ -1062,6 +1121,14 @@
             this.x += arguments[0];
             this.y += arguments[1];
         }
+    };
+
+    /**
+     * Gets the entity's location as a vector
+     * @return {Vector} The location of the entity
+     */
+    RenderedEntity.prototype.getLoc = function() {
+        return new Vector(this.x, this.y);
     };
 
     /**
