@@ -150,6 +150,10 @@ function PlayerManager() {
 		if (playerManager.scored <= 0 || playerManager.wrongBall || playerManager.scratched) {
 			playerManager.turn = !playerManager.turn;
 			playerManager.turnsUnbroken = 0;
+			if (playerManager.sunk8) {
+				new Message('SCRATCH!', playerManager.turn, -50);
+				new Message('Player ' + (!playerManager.turn ? '1' : '2') + ' Wins!', !playerManager.turn, 250, true);
+			}
 		} else {
 			var scored = playerManager.scored;
 			var msgText;
@@ -185,12 +189,7 @@ function PlayerManager() {
 				new Message(msgText, playerManager.turn, points);
 			}
 			playerManager.turnsUnbroken++;
-		}
-		if (playerManager.sunk8) {
-			if (playerManager.wrongBall || playerManager.scratched) {
-				new Message('SCRATCH!', playerManager.turn, -50);
-				new Message('Player ' + (!playerManager.turn ? '1' : '2') + ' Wins!', !playerManager.turn, 250, true);
-			} else {
+			if (playerManager.sunk8) {
 				new Message('SUNK THE 8!', playerManager.turn, 50);
 				new Message('Player ' + (playerManager.turn ? '1' : '2') + ' Wins!', playerManager.turn, 250, true);
 			}
@@ -599,18 +598,18 @@ for (var i = 0; i < 5; ++i) {
 		} else if (i === 4 && j === 0) {
 			var botCorner = new PCircle(x, y, 10, 30);
 			if (Math.round(Math.random())) {
-				botCorner.number = Math.round(Math.random() * 6) + 1;	
+				botCorner.number = Math.round(Math.random() * 5) + 2;	
 				corner1Solid = true;
 			} else {
-				botCorner.number = Math.round(Math.random() * 7) + 9;
+				botCorner.number = Math.round(Math.random() * 6) + 9;
 			}
 			skip.push(botCorner.number);
 		} else if (i === 4 && j === 4) {
 			var topCorner = new PCircle(x, y, 10, 30);
 			if (corner1Solid) {
-				topCorner.number = Math.round(Math.random() * 7) + 9;
+				topCorner.number = Math.round(Math.random() * 6) + 9;
 			} else {
-				topCorner.number = Math.round(Math.random() * 6) + 1;
+				topCorner.number = Math.round(Math.random() * 5) + 2;
 			}
 			skip.push(topCorner.number);
 		} else {
@@ -618,13 +617,14 @@ for (var i = 0; i < 5; ++i) {
 		}
 	}
 }
-
+console.log('skipping: ' + skip);
 var assign = 2;
 balls = shuffle(balls);
 for (var i = 0; i < balls.length; ++i) {
 	balls[i].number = assign;
+	console.log('assigning number ' + assign);
 	assign++;
-	if (skip.indexOf(assign) !== -1) {
+	while (skip.indexOf(assign) !== -1) {
 		assign++;
 	}
 }
