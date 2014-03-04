@@ -173,7 +173,7 @@
             }
         },
         distSquared: function(a, b) {
-            return Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2);
+            return (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
         },
         dist: function(a, b) {
             return Math.sqrt(Util.distSquared(a, b));
@@ -369,7 +369,15 @@
          */
         this.getMouse = function() {
             return mouse;
-        }
+        };
+
+        this.castRay = function(x, y, direction, distance, collidesWith) {
+            var direction = direction.toUnitVector();
+            var point = new Vector(x, y);
+            for (var i = 0; i < entities.length; ++i) {
+                
+            }
+        };
 
         // Protected methods
 
@@ -598,7 +606,7 @@
         this.x = x;
         this.y = y;
         this.getMagnitudeSquared = function() {
-            return Math.pow(this.x, 2) + Math.pow(this.y, 2);
+            return this.x * this.x + this.y * this.y;
         };
         this.getMagnitude = function() {
             return Math.sqrt(this.getMagnitudeSquared());
@@ -648,8 +656,9 @@
         if (circleDistance.y <= (aabb.height / 2)) {
             return true;
         }
-        var cornerDistSquared = Math.pow(circleDistance.x - aabb.width / 2, 2) + Math.pow(circleDistance.y - aabb.height / 2, 2);
-        return cornerDistSquared <= Math.pow(c.radius, 2);
+        var cornerDistSquared = (circleDistance.x - aabb.width / 2) * (circleDistance.x - aabb.width / 2) +
+            (circleDistance.y - aabb.height / 2) * (circleDistance.y - aabb.height / 2);
+        return cornerDistSquared <= (c.radius) * (c.radius);
     };
 
     /**
@@ -700,14 +709,14 @@
                 if (b instanceof BoundingBox.Circle) {
                     var A = new Vector(this.parent.x, this.parent.y);
                     var B = new Vector(b.parent.x, b.parent.y)
-                    return B.subtract(A).getMagnitudeSquared() < Math.pow(this.radius + b.radius, 2);
+                    return B.subtract(A).getMagnitudeSquared() < (this.radius + b.radius) * (this.radius + b.radius);
                 } else if (b instanceof BoundingBox.AABB) {
                     return AABBcollidesWithCircle(b, this);
                 }
             };
             this.isPointInside = function(p) {
                 var rSquared = this.radius * this.radius;
-                var dSquared = Math.pow(this.parent.x - p.x, 2) + Math.pow(this.parent.y - p.y, 2);
+                var dSquared = (this.parent.x - p.x) * (this.parent.x - p.x) + (this.parent.y - p.y) * (this.parent.y - p.y);
                 if (dSquared < rSquared) {
                     return true;
                 }
@@ -1147,24 +1156,52 @@
     BoundedEntity.constructor = BoundedEntity;
 
     BoundedEntity.prototype.step = function(deltaTime) {
-        if (this.collisionLayer == null || this.collisionLayer === '' || this.collidesWith == null || this.collidesWith.length === 0 ||
-            this.bounds == null || this.onCollide == null) {
+        if (!(this.canCollide() && this.hasCollisionListener())) {
             return;
         }
         var entities = instance.getEntities();
         for (var i = 0; i < entities.length; ++i) {
-            if (entities[i] === this) {
-                continue;
-            }
-            if (entities[i].collisionLayer == null || entities[i].collisionLayer === '' || entities[i].collidesWith == null ||
-                entities[i].collidesWith.length === 0 || entities[i].bounds == null) {
-                continue;
-            }
-            if (entities[i] instanceof BoundedEntity && entities[i].collidesWith.indexOf(this.collisionLayer) !== -1 &&
-                this.collidesWith.indexOf(entities[i].collisionLayer) !== -1 && this.bounds.collidesWith(entities[i].bounds)) {
+            if (entities[i] instanceof BoundedEntity && entities[i].canCollide() && this.isCollidingWith(entities[i])) {
                 this.onCollide(entities[i]);
             }
         }
+    };
+
+    /**
+     * If the entity supports collision
+     * @return {Boolean} If the entity supports collision
+     */
+    BoundedEntity.prototype.canCollide = function() {
+        if (this.collisionLayer == null || this.collisionLayer === '' || this.collidesWith == null || this.collidesWith.length === 0 ||
+            this.bounds == null) {
+            return false;
+        }
+        return true;
+    };
+    /**
+     * If the entity has a collision listener
+     * @return {Boolean} If the entitiy has a collision listener
+     */
+    BoundedEntity.prototype.hasCollisionListener = function() {
+        if (this.onCollide == null) {
+            return false;
+        }
+        return true;
+    }
+    /**
+     * Checks if the entity is colliding with the specified entity
+     * @param  {BoundedEntity}  entity The entity to check for collision with
+     * @return {Boolean}        If the two entities are colliding
+     */
+    BoundedEntity.prototype.isCollidingWith = function(entity) {
+        if (entity === this || !(entity instanceof BoundedEntity) || !entity.canCollide()) {
+            return false;
+        }
+        if (entity.collidesWith.indexOf(this.collisionLayer) !== -1 && this.collidesWith.indexOf(entity.collisionLayer) !== -1 &&
+            this.bounds.collidesWith(entity.bounds)) {
+            return true;
+        }
+        return false;
     };
 
     /**
@@ -1242,6 +1279,8 @@
         // Update the entities position based on its velocity
         this.x += this.vx * deltaTime;
         this.y += this.vy * deltaTime;
+        //var dx = this.vx * deltaTime;
+        //var dy = this.vy * deltaTime;
     };
 
     /**
