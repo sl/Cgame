@@ -650,27 +650,6 @@
         };
     };
 
-    // Rays
-    
-    /**
-     * Creates a new ray that can be cast to check for bounding boxes that lie along that ray
-     * @param {Number} x        The x position of the ray's origin
-     * @param {Number} y        The y position of the ray's origin
-     * @param {Number} r        The angle to cast the ray at (in radians)
-     * @param {Number} distance The maximum distance to cast the ray
-     */
-    Ray = function(x, y, r, distance) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.cast = function() {
-
-        }
-        this.castToEntity = function(entity) {
-
-        }
-    }
-
     // Vectors
 
     /**
