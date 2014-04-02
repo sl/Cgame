@@ -1286,9 +1286,30 @@
         var entities = instance.getEntities();
         for (var i = 0; i < entities.length; ++i) {
             if (entities[i] instanceof BoundedEntity && entities[i].canCollide() && this.isCollidingWith(entities[i])) {
-                this.onCollide(entities[i]);
+                if (this.hasCollisionListener()) {
+                    this.onCollide(entities[i]);
+                }
             }
         }
+    };
+
+    /**
+     * Forces a collision check with all non-physics Entities. This is for checking if collisions occured between
+     * non physics entities between frames due to multisampling. It will send the onCollide event if any collisions occur.
+     */
+    BoundedEntity.prototype.forceNonPhysicsCollisionCheck = function() {
+        var entities = instance.getEntities();
+        var collidedTracker = [];
+        for (var i = 0; i < entities.length; ++i) {
+            if (collidedTracker.indexOf(entities[i]) !== -1) {
+                continue;
+            }
+            if (!(entities[i] instanceof PhysicsEntity) && entities[i] instanceof BoundedEntity && entities[i].canCollide() &&
+                this.isCollidingWith(entities[i])) {
+                collidedTracker.push(entities[i]);
+            }
+        }
+        return collidedTracker;
     };
 
     /**
@@ -1382,34 +1403,78 @@
         // Call the superclasses step function
         BoundedEntity.prototype.step.apply(this, arguments);
         // Decreate velocity based on friction
+        var dt = deltaTime;
         this.vx -= this.vx * this.friction * deltaTime;
         this.vy -= this.vy * this.friction * deltaTime;
+
+        var totalDist = this.getVelocity().getMagnitude() * deltaTime;
+        var elapsed = 0;
         // Perform physics, and collision logic
         var entities = instance.getEntities();
-        if (this.enableCollisionResponse) {
-            /*for (var i = 0; i < instance.getEntities().length; ++i) {
-                if (instance.getEntities()[i] instanceof PhysicsEntity && instance.getEntities()[i].enableCollisionResponse) {
-                    var resolved = Collision.checkAndResolveCollision(this, instance.getEntities()[i]);
-                    if (resolved == null) {
-                        continue;
+        var alertOfCollision = [];
+        while (elapsed < deltaTime) {
+            if (elapsed > 0) {
+                var temp = this.forceNonPhysicsCollisionCheck();
+                for (var i = 0; i < temp.length; ++i) {
+                    if (alertOfCollision.indexOf(temp[i]) === -1) {
+                        alertOfCollision.push(temp[i]);
                     }
-                    this.x = resolved.e1.x;
-                    this.vx = resolved.e1.vx;
-                    this.y = resolved.e1.y;
-                    this.vy = resolved.e1.vy;
-                    instance.getEntities()[i].x = resolved.e2.x;
-                    instance.getEntities()[i].vx = resolved.e2.vx;
-                    instance.getEntities()[i].y = resolved.e2.y;
-                    instance.getEntities()[i].vy = resolved.e2.vy;
                 }
-            }*/
-        }
+            }
+            if (this.enableCollisionResponse) {
+                for (var i = 0; i < instance.getEntities().length; ++i) {
+                    if (entities[i] instanceof PhysicsEntity && entities[i].enableCollisionResponse) {
+                        var resolved = Collision.checkAndResolveCollision(this, entities[i]);
 
-        // Update the entities position based on its velocity
-        this.x += this.vx * deltaTime;
-        this.y += this.vy * deltaTime;
-        //var dx = this.vx * deltaTime;
-        //var dy = this.vy * deltaTime;
+                        if (resolved == null) {
+                            continue;
+                        }
+                        this.x = resolved.e1.x;
+                        this.vx = resolved.e1.vx;
+                        this.y = resolved.e1.y;
+                        this.vy = resolved.e1.vy;
+                        entities[i].x = resolved.e2.x;
+                        entities[i].vx = resolved.e2.vx;
+                        entities[i].y = resolved.e2.y;
+                        entities[i].vy = resolved.e2.vy;
+                        if (elapsed > 0) {
+                            if (this.hasCollisionListener()) {
+                                this.onCollide(entities[i]);
+                            }
+                            if (entities[i].hasCollisionListener()) {
+                                entities[i].onCollide(this);
+                            }
+                        }
+                    }
+                }
+            }
+            var stepTime = deltaTime;
+            if (this.vx === 0 && this.vy === 0) {
+                break;
+            }
+            if (this.multiSample) {
+                if (this.bounds instanceof BoundingBox.Circle) {
+                    stepTime = Math.min(this.bounds.radius / this.getVelocity().getMagnitude(), deltaTime - elapsed);
+                } else {
+                    var stepx = Math.min(this.bounds.width / this.vx, deltaTime - elapsed);
+                    var stepy = Math.min(this.bounds.height / this.vy, deltaTime - elapsed);
+                    stepTime = Math.min(stepx, stepy);
+                }
+
+            }
+            // Update the entities position based on its velocity
+            this.x += this.vx * stepTime;
+            this.y += this.vy * stepTime;
+            elapsed += stepTime;
+        }
+        for (var i = 0; i < alertOfCollision.length; ++i) {
+            if (alertOfCollision[i].hasCollisionListener()) {
+                alertOfCollision[i].onCollide(this);
+            }
+            if (this.hasCollisionListener()) {
+                this.onCollide(alertOfCollision[i]);
+            }
+        }
     };
 
     /**

@@ -433,6 +433,7 @@ function PCircle(x, y, radius, mass) {
 	this.grabbed = false;
 	this.grabable = true;
 	this.shootable = true;
+	this.multiSample = true;
 	this.friction = 0.001;
 	this.shootable = true;
 	PhysicsEntity.apply(this, [{}]);
@@ -450,8 +451,8 @@ function PCircle(x, y, radius, mass) {
 			var yi = this.y;
 			this.x = game.getMouse().x;
 			this.y = game.getMouse().y;
-			this.vx = 0.7 * this.vx + 0.3 * ((this.x - xi) / deltaTime);
-			this.vy = 0.7 * this.vy + 0.3 * ((this.y - yi) / deltaTime);
+			//this.vx = 0.7 * this.vx + 0.3 * ((this.x - xi) / deltaTime);
+			//this.vy = 0.7 * this.vy + 0.3 * ((this.y - yi) / deltaTime);
 		} else {
 			PhysicsEntity.prototype.step.apply(this, arguments);
 		}
@@ -706,7 +707,7 @@ function MouseWatcher() {
 }
 new MouseWatcher();
 
-new Pocket(-size.width / 2 + 10, -size.height / 2 + 10);
+var pocket = new Pocket(-size.width / 2 + 10, -size.height / 2 + 10);
 new Pocket(-size.width / 2 + 10, size.height / 2 - 10);
 new Pocket(size.width / 2 - 10, -size.height / 2 + 10);
 new Pocket(size.width / 2 - 10, size.height / 2 - 10);
