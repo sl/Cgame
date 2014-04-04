@@ -1104,17 +1104,20 @@
         for (var i = 0; i < prefKeys.length; ++i) {
             this[prefKeys[i]] = props[prefKeys[i]];
         }
+        this.destroyed = true;
     };
     /**
      * Creates the entity, puting it under the main game instance's management
      */
     Entity.prototype.create = function() {
+    	this.destroyed = false;
         p[id(instance)].addEntity(this);
     };
     /**
      * Destroys the entity, removing it from the main game instance's management
      */
     Entity.prototype.destroy = function() {
+    	this.destroyed = true;
         p[id(instance)].removeEntity(this);
     };
 
@@ -1471,8 +1474,14 @@
             if (alertOfCollision[i].hasCollisionListener()) {
                 alertOfCollision[i].onCollide(this);
             }
+            if (this.destroyed) {
+            	return;
+            }
             if (this.hasCollisionListener()) {
                 this.onCollide(alertOfCollision[i]);
+            }
+            if (this.destroyed) {
+            	return;
             }
         }
     };
