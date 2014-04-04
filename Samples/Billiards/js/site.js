@@ -622,12 +622,12 @@ console.log('skipping: ' + skip);
 var assign = 2;
 balls = shuffle(balls);
 for (var i = 0; i < balls.length; ++i) {
-	balls[i].number = assign;
-	console.log('assigning number ' + assign);
-	assign++;
 	while (skip.indexOf(assign) !== -1) {
 		assign++;
 	}
+	balls[i].number = assign;
+	console.log('assigning number ' + assign);
+	assign++;
 }
 
 var whiteball = new PCircle(-size.width * (5/16), 0, 10, 30);
