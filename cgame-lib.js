@@ -1288,7 +1288,8 @@
         }
         var entities = instance.getEntities();
         for (var i = 0; i < entities.length; ++i) {
-            if (entities[i] instanceof BoundedEntity && entities[i].canCollide() && this.isCollidingWith(entities[i])) {
+            if (!(entities[i] instanceof PhysicsEntity) && entities[i] instanceof BoundedEntity && entities[i].canCollide() &&
+                    this.isCollidingWith(entities[i])) {
                 if (this.hasCollisionListener()) {
                     this.onCollide(entities[i]);
                 }
@@ -1314,6 +1315,23 @@
         }
         return collidedTracker;
     };
+
+    /**
+     * Gets if the entity is currently colliding with anything
+     * @return {Boolean} If the entity is currently colliding with anything
+     */
+    BoundedEntity.prototype.isColliding = function() {
+        if (!(this.canCollide())) {
+            return;
+        }
+        var entities = instance.getEntities();
+        for (var i = 0; i < entities.length; ++i) {
+            if (entities[i] instanceof BoundedEntity && entities[i].canCollide() && this.isCollidingWith(entities[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /**
      * If the entity supports collision
@@ -1404,7 +1422,6 @@
      */
     PhysicsEntity.prototype.step = function(deltaTime) {
         // Call the superclasses step function
-        BoundedEntity.prototype.step.apply(this, arguments);
         // Decreate velocity based on friction
         var dt = deltaTime;
         this.vx -= this.vx * this.friction * deltaTime;
@@ -1416,12 +1433,24 @@
         var entities = instance.getEntities();
         var alertOfCollision = [];
         while (elapsed < deltaTime) {
-            if (elapsed > 0) {
-                var temp = this.forceNonPhysicsCollisionCheck();
-                for (var i = 0; i < temp.length; ++i) {
-                    if (alertOfCollision.indexOf(temp[i]) === -1) {
-                        alertOfCollision.push(temp[i]);
-                    }
+            var temp = this.forceNonPhysicsCollisionCheck();
+            for (var i = 0; i < temp.length; ++i) {
+                if (alertOfCollision.indexOf(temp[i]) === -1) {
+                    alertOfCollision.push(temp[i]);
+                }
+            }
+            for (var i = 0; i < alertOfCollision.length; ++i) {
+                if (this.hasCollisionListener()) {
+                    this.onCollide(alertOfCollision[i]);
+                }
+                if (this.destroyed) {
+                    return;
+                }
+                if (alertOfCollision[i].hasCollisionListener()) {
+                    alertOfCollision[i].onCollide(this);
+                }
+                if (this.destroyed) {
+                    return;
                 }
             }
             if (this.enableCollisionResponse) {
@@ -1440,13 +1469,11 @@
                         entities[i].vx = resolved.e2.vx;
                         entities[i].y = resolved.e2.y;
                         entities[i].vy = resolved.e2.vy;
-                        if (elapsed > 0) {
-                            if (this.hasCollisionListener()) {
-                                this.onCollide(entities[i]);
-                            }
-                            if (entities[i].hasCollisionListener()) {
-                                entities[i].onCollide(this);
-                            }
+                        if (this.hasCollisionListener()) {
+                            this.onCollide(entities[i]);
+                        }
+                        if (entities[i].hasCollisionListener()) {
+                            entities[i].onCollide(this);
                         }
                     }
                 }
@@ -1469,20 +1496,6 @@
             this.x += this.vx * stepTime;
             this.y += this.vy * stepTime;
             elapsed += stepTime;
-        }
-        for (var i = 0; i < alertOfCollision.length; ++i) {
-            if (alertOfCollision[i].hasCollisionListener()) {
-                alertOfCollision[i].onCollide(this);
-            }
-            if (this.destroyed) {
-            	return;
-            }
-            if (this.hasCollisionListener()) {
-                this.onCollide(alertOfCollision[i]);
-            }
-            if (this.destroyed) {
-            	return;
-            }
         }
     };
 
