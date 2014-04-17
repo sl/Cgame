@@ -422,7 +422,6 @@ function Monitor() {
 				preserve.push(events[i]);
 			}
 		}
-		console.log('settled');
 		events = preserve;
 		settled = true;
 		scratched = false;
@@ -644,7 +643,6 @@ for (var i = 0; i < 5; ++i) {
 		}
 	}
 }
-console.log('skipping: ' + skip);
 var assign = 2;
 balls = shuffle(balls);
 for (var i = 0; i < balls.length; ++i) {
@@ -652,7 +650,6 @@ for (var i = 0; i < balls.length; ++i) {
 		assign++;
 	}
 	balls[i].number = assign;
-	console.log('assigning number ' + assign);
 	assign++;
 }
 
@@ -660,7 +657,6 @@ var whiteball = new PCircle(-size.width * (5/16), 0, 10, 30);
 whiteball.number = 0;
 
 monitor.registerCallback({ priority: 0, recurring: true, fire: function() {
-	console.log(whiteball.collided);
 } });
 
 MouseWatcher.prototype = Object.create(Entity.prototype);
