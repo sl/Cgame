@@ -32,6 +32,7 @@ function PCircle(x, y, radius, mass) {
 	this.vy = 0;
 	this.mass = mass;
 	this.restitution = 0.25;
+	this.multiSample = true;
 	this.bounds = new BoundingBox.Circle(this, radius);
 	this.grabbed = false;
 	this.grabable = true;
@@ -85,6 +86,7 @@ function PRect(x, y, width, height, hasGravity, mass) {
 	this.vy = 0;
 	this.mass = mass;
 	this.restitution = 0.25;
+	this.multiSample = true;
 	this.bounds = new BoundingBox.AABB(this, width, height);
 	this.hasGravity = hasGravity;
 	this.grabbed = false;

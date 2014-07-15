@@ -151,6 +151,14 @@
         clamp: function(x, min, max) {
             return x < min ? min : (x > max ? max : x);
         },
+        /**
+         * Finds the center of an AABB given the positions of its corners
+         * @param  {Number} x1 The first x position
+         * @param  {Number} x2 The second x position
+         * @param  {Number} y1 The first y position
+         * @param  {Number} y2 The second y position
+         * @return {Object}    The coordinates of the center of the AABB
+         */
         getCoordsFromBounds: function(x1, x2, y1, y2) {
             var coords = {};
             coords.x = (x1 + x2) / 2;
@@ -161,6 +169,12 @@
             coords.height = Math.abs(coords.height);
             return coords;
         },
+        /**
+         * A function for sorting entities by their z index
+         * @param  {Entity} a The first entity to compare
+         * @param  {Entity} b The second entity to compare
+         * @return {Number}   The result of the comparison
+         */
         sortZ: function(a, b) {
             if (a.hasOwnProperty('z') && b.hasOwnProperty('z')) {
                 return (a.z - b.z);
@@ -172,16 +186,36 @@
                 return 0;
             }
         },
+        /**
+         * Gets the distnace squared between two points
+         * @param  {Object} a The first point
+         * @param  {Object} b The second point
+         * @return {Number}   The squared distance between the two objects
+         */
         distSquared: function(a, b) {
             return (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
         },
+        /**
+         * Gets the distance between two points
+         * @param  {Object} a The first point
+         * @param  {Object} b The second point
+         * @return {Nuber}   The distance between the two objects
+         */
         dist: function(a, b) {
             return Math.sqrt(Util.distSquared(a, b));
         }
     };
 
+    /**
+     * Keeps track of the current transformation of the canvas to allow for transforming from screen to game coordinates
+     */
     function PointTransform() {
         var operations = [];
+        /**
+         * Transforms a point using all of the operations added to the PointTransform
+         * @param  {Object} point The point to transform
+         * @return {Object}       The transformed point
+         */
         this.transformPoint = function(point) {
             var newPoint = point;
             //for (var i = operations.length - 1; i >= 0; --i) {
@@ -190,6 +224,11 @@
             }
             return newPoint;
         };
+        /**
+         * Adds a scale operation to the PointTransform
+         * @param {Number} x The scale amount in the x axis
+         * @param {Number} y The scale amount in the y axis
+         */
         this.addScale = function(x, y) {
             operations.push(function(point) {
                 var np = {};
@@ -198,6 +237,11 @@
                 return np;
             });
         };
+        /**
+         * Adds a translate operation to the pointTransform
+         * @param {Number} x The translation along the x axis
+         * @param {Number} y The translation along the y axis
+         */
         this.addTranslate = function(x, y) {
             operations.push(function(point) {
                 var np = {};
@@ -206,6 +250,11 @@
                 return np;
             });
         };
+        /**
+         * Adds an operation to the point transform
+         * @param {Function} f The operation to add. Should take an object with the x and y coordinates as its properties as input,
+         * and return an object with the transformed x and y coordinates as its properties
+         */
         this.addOther = function(f) {
             operations.push(f);
         }
@@ -272,8 +321,17 @@
         var lastTime = null;
 
         // Initializes any preferences that are necessary but weren't assigned
-
-        var mouse = { x: null, y: null, mouseDown: false, getLoc: function() { return new Vector(this.x, this.y); } };
+        
+        /**
+         * Gets the games mouse object
+         * @type {Object}
+         */
+        var mouse;
+        /**
+         * Gets the location of the mouse as a vector
+         * @return {Vector}   The location of the mouse as a vector
+         */
+        mouse = { x: null, y: null, mouseDown: false, getLoc: function() { return new Vector(this.x, this.y); } };
 
         if (!this.prefs.hasOwnProperty('timeScale')) {
             this.prefs.timeScale = 1;
@@ -369,14 +427,6 @@
          */
         this.getMouse = function() {
             return mouse;
-        };
-
-        this.castRay = function(x, y, direction, distance, collidesWith) {
-            var direction = direction.toUnitVector();
-            var point = new Vector(x, y);
-            for (var i = 0; i < entities.length; ++i) {
-                
-            }
         };
 
         // Protected methods
@@ -602,44 +652,108 @@
 
     // Vectors
 
+    /**
+     * Creates a 2D vector
+     * @param {Number} x The x component of the vector
+     * @param {Number} y The y component of the vector
+     */
     Vector = function(x, y) {
         this.x = x;
         this.y = y;
+        /**
+         * Gets the magnitude of the vector squared (faster than getMagnitude, use whenever possible)
+         * @return {Number} The magnitude of the vector squared
+         */
         this.getMagnitudeSquared = function() {
             return this.x * this.x + this.y * this.y;
         };
+        /**
+         * Gets the magnitude of the vector (getMagnitudeSquared is faster, so use it instead whenever possible)
+         * @return {Number} The magnitude of the vector
+         */
         this.getMagnitude = function() {
             return Math.sqrt(this.getMagnitudeSquared());
         };
+        /**
+         * Componentwise adds another vector to the vector
+         * @param {Vector} v The vector to add
+         * @return {Vector} The resulting vector
+         */
         this.add = function(v) {
             return new Vector(this.x + v.x, this.y + v.y);
         };
+        /**
+         * Componentwise subtracts another vector from the vector
+         * @param  {Vector} v The vector to subtract
+         * @return {Vector}   The resulting vector
+         */
         this.subtract = function(v) {
             return new Vector(this.x - v.x, this.y - v.y);
         };
+        /**
+         * Divides a vector by a scalar value
+         * @param  {Number} s The number to divide the vector by
+         * @return {Vector}   The resulting vector
+         */
         this.divide = function(s) {
             return new Vector(this.x / s, this.y / s);
         };
+        /**
+         * Multiplies a vector by a scalar value
+         * @param  {Number} s The number to multiply the vector by
+         * @return {Vector}   The resulting vector
+         */
         this.times = function(s) {
             return new Vector(this.x * s, this.y * s);
         };
+        /**
+         * Gets the dot product of the vector and another vector
+         * @param  {Vector} v The vector to take the dot product with
+         * @return {Number}   The result of the dot product operation
+         */
         this.dot = function(v) {
             return this.x * v.x + this.y * v.y;
         };
+        /**
+         * Gets the magnitude of this vector projected onto another vector
+         * @param  {Vector} v The vector to project this one on
+         * @return {Number}   The magnitude of the the projected vector
+         */
         this.projectionMagnitude = function(v) {
             return this.dot(v) / this.getMagnitude();
         };
+        /**
+         * Gets the unit vector with the same direction as the vector
+         * @return {Vector} The resulting unit vector
+         */
         this.toUnitVector = function() {
             var mag = this.getMagnitude();
             return new Vector(this.x / mag, this.y / mag);
         };
+        /**
+         * Gets a vector of the specified length in the same direction as the vector
+         * @param  {Number} n The magnitude of the resulting vector
+         * @return {Vector}   The resulting vector
+         */
         this.toFixedLengthVector = function(n) {
             return this.toUnitVector().times(n);
         };
+        /**
+         * Gets the angle in radians of the direction that the vector points
+         * @return {Number} The angle in radians of the vector's direction
+         */
+        this.toAngle = function() {
+            return Math.atan2(this.y, this.x);
+        }
     };
 
     // Collision logic
 
+    /**
+     * Checks if an axis aligned bounding box collides with a circular bounding box
+     * @param {BoundingBox.AABB} aabb The Axis Aligned Bounding Box
+     * @param {BoundingBox.Circle} c  The Circular Bounding Box
+     */
     var AABBcollidesWithCircle = function(aabb, c) {
         var circleDistance = {};
         circleDistance.x = Math.abs(c.parent.x - aabb.parent.x);
@@ -725,6 +839,10 @@
         }
     };
 
+    /**
+     * A collection of collision related utility functions
+     * @type {Object}
+     */
     var Collision = {
         /**
          * An axis aligned rectangle bounding box
@@ -973,7 +1091,7 @@
     // Entity and subclasses
 
     /**
-     * Represents a game object that can be updated, and drawn. In most cases, Entity should be
+     * Represents a game object that can be updated and drawn. In most cases, Entity should be
      * inherited from rather than instanced
      * @param {Object} props The properties to initialize the entity with
      */
@@ -986,17 +1104,20 @@
         for (var i = 0; i < prefKeys.length; ++i) {
             this[prefKeys[i]] = props[prefKeys[i]];
         }
+        this.destroyed = true;
     };
     /**
      * Creates the entity, puting it under the main game instance's management
      */
     Entity.prototype.create = function() {
+    	this.destroyed = false;
         p[id(instance)].addEntity(this);
     };
     /**
      * Destroys the entity, removing it from the main game instance's management
      */
     Entity.prototype.destroy = function() {
+    	this.destroyed = true;
         p[id(instance)].removeEntity(this);
     };
 
@@ -1155,17 +1276,62 @@
     BoundedEntity.prototype = Object.create(RenderedEntity.prototype);
     BoundedEntity.constructor = BoundedEntity;
 
+    /**
+     * Performs a single logic tick, checking if the BoundedEntity is capable of colliding with other Entities, and
+     * checking if it is colliding with them
+     * @param  {Number} deltaTime The elapsed time since the last logic tick
+     * @fires Entity#onCollide(entity)
+     */
     BoundedEntity.prototype.step = function(deltaTime) {
         if (!(this.canCollide() && this.hasCollisionListener())) {
             return;
         }
         var entities = instance.getEntities();
         for (var i = 0; i < entities.length; ++i) {
-            if (entities[i] instanceof BoundedEntity && entities[i].canCollide() && this.isCollidingWith(entities[i])) {
-                this.onCollide(entities[i]);
+            if (!(entities[i] instanceof PhysicsEntity) && entities[i] instanceof BoundedEntity && entities[i].canCollide() &&
+                    this.isCollidingWith(entities[i])) {
+                if (this.hasCollisionListener()) {
+                    this.onCollide(entities[i]);
+                }
             }
         }
     };
+
+    /**
+     * Forces a collision check with all non-physics Entities. This is for checking if collisions occured between
+     * non physics entities between frames due to multisampling. It will send the onCollide event if any collisions occur.
+     */
+    BoundedEntity.prototype.forceNonPhysicsCollisionCheck = function() {
+        var entities = instance.getEntities();
+        var collidedTracker = [];
+        for (var i = 0; i < entities.length; ++i) {
+            if (collidedTracker.indexOf(entities[i]) !== -1) {
+                continue;
+            }
+            if (!(entities[i] instanceof PhysicsEntity) && entities[i] instanceof BoundedEntity && entities[i].canCollide() &&
+                this.isCollidingWith(entities[i])) {
+                collidedTracker.push(entities[i]);
+            }
+        }
+        return collidedTracker;
+    };
+
+    /**
+     * Gets if the entity is currently colliding with anything
+     * @return {Boolean} If the entity is currently colliding with anything
+     */
+    BoundedEntity.prototype.isColliding = function() {
+        if (!(this.canCollide())) {
+            return;
+        }
+        var entities = instance.getEntities();
+        for (var i = 0; i < entities.length; ++i) {
+            if (entities[i] instanceof BoundedEntity && entities[i].canCollide() && this.isCollidingWith(entities[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /**
      * If the entity supports collision
@@ -1203,6 +1369,10 @@
         }
         return false;
     };
+
+    BoundedEntity.prototype.isOnCollisionLayer = function(layer) {
+        return (layer.indexOf(this.collisionLayer) !== -1);
+    }
 
     /**
      * Creates an entity with basic 2-D physics that uses a Force impulse resolution model
@@ -1248,39 +1418,85 @@
 
     /**
      * Runs a single logic tick, preforming physics operations for the object, and modifying its position accordingly
-     * @param  {[type]} deltaTime [description]
-     * @return {[type]}           [description]
+     * @param  {number} deltaTime The elapsed time since the last logic tick
      */
     PhysicsEntity.prototype.step = function(deltaTime) {
         // Call the superclasses step function
-        BoundedEntity.prototype.step.apply(this, arguments);
         // Decreate velocity based on friction
+        var dt = deltaTime;
         this.vx -= this.vx * this.friction * deltaTime;
         this.vy -= this.vy * this.friction * deltaTime;
+
+        var totalDist = this.getVelocity().getMagnitude() * deltaTime;
+        var elapsed = 0;
         // Perform physics, and collision logic
-        if (this.enableCollisionResponse) {
-            for (var i = 0; i < instance.getEntities().length; ++i) {
-                if (instance.getEntities()[i] instanceof PhysicsEntity && instance.getEntities()[i].enableCollisionResponse) {
-                    var resolved = Collision.checkAndResolveCollision(this, instance.getEntities()[i]);
-                    if (resolved == null) {
-                        continue;
-                    }
-                    this.x = resolved.e1.x;
-                    this.vx = resolved.e1.vx;
-                    this.y = resolved.e1.y;
-                    this.vy = resolved.e1.vy;
-                    instance.getEntities()[i].x = resolved.e2.x;
-                    instance.getEntities()[i].vx = resolved.e2.vx;
-                    instance.getEntities()[i].y = resolved.e2.y;
-                    instance.getEntities()[i].vy = resolved.e2.vy;
+        var entities = instance.getEntities();
+        var alertOfCollision = [];
+        while (elapsed < deltaTime) {
+            var temp = this.forceNonPhysicsCollisionCheck();
+            for (var i = 0; i < temp.length; ++i) {
+                if (alertOfCollision.indexOf(temp[i]) === -1) {
+                    alertOfCollision.push(temp[i]);
                 }
             }
+            for (var i = 0; i < alertOfCollision.length; ++i) {
+                if (this.hasCollisionListener()) {
+                    this.onCollide(alertOfCollision[i]);
+                }
+                if (this.destroyed) {
+                    return;
+                }
+                if (alertOfCollision[i].hasCollisionListener()) {
+                    alertOfCollision[i].onCollide(this);
+                }
+                if (this.destroyed) {
+                    return;
+                }
+            }
+            if (this.enableCollisionResponse) {
+                for (var i = 0; i < instance.getEntities().length; ++i) {
+                    if (entities[i] instanceof PhysicsEntity && entities[i].enableCollisionResponse) {
+                        var resolved = Collision.checkAndResolveCollision(this, entities[i]);
+
+                        if (resolved == null) {
+                            continue;
+                        }
+                        this.x = resolved.e1.x;
+                        this.vx = resolved.e1.vx;
+                        this.y = resolved.e1.y;
+                        this.vy = resolved.e1.vy;
+                        entities[i].x = resolved.e2.x;
+                        entities[i].vx = resolved.e2.vx;
+                        entities[i].y = resolved.e2.y;
+                        entities[i].vy = resolved.e2.vy;
+                        if (this.hasCollisionListener()) {
+                            this.onCollide(entities[i]);
+                        }
+                        if (entities[i].hasCollisionListener()) {
+                            entities[i].onCollide(this);
+                        }
+                    }
+                }
+            }
+            var stepTime = deltaTime;
+            if (this.vx === 0 && this.vy === 0) {
+                break;
+            }
+            if (this.multiSample) {
+                if (this.bounds instanceof BoundingBox.Circle) {
+                    stepTime = Math.min(this.bounds.radius / this.getVelocity().getMagnitude(), deltaTime - elapsed);
+                } else {
+                    var stepx = Math.min(this.bounds.width / this.vx, deltaTime - elapsed);
+                    var stepy = Math.min(this.bounds.height / this.vy, deltaTime - elapsed);
+                    stepTime = Math.min(stepx, stepy);
+                }
+
+            }
+            // Update the entities position based on its velocity
+            this.x += this.vx * stepTime;
+            this.y += this.vy * stepTime;
+            elapsed += stepTime;
         }
-        // Update the entities position based on its velocity
-        this.x += this.vx * deltaTime;
-        this.y += this.vy * deltaTime;
-        //var dx = this.vx * deltaTime;
-        //var dy = this.vy * deltaTime;
     };
 
     /**

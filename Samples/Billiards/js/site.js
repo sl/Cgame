@@ -22,6 +22,8 @@ var colors = ['white', 'yellow', 'blue', 'red', 'purple', 'orange', 'green', '#B
 var inPocket = [];
 var isBreak = true;
 
+var pockets = [];
+
 Back.prototype = Object.create(RenderedEntity.prototype);
 Back.prototype.constructor = Back;
 function Back() {
@@ -145,7 +147,7 @@ function PlayerManager() {
 	this.p2styleDisplay = 0;
 	this.lastTick = +new Date();
 	this.stepWhenPaused = true;
-	monitor.registerCallback({recurring: true, fire: function() {
+	monitor.registerCallback({ priority: 1, recurring: true, fire: function() {
 
 		if (playerManager.scored <= 0 || playerManager.wrongBall || playerManager.scratched) {
 			playerManager.turn = !playerManager.turn;
@@ -403,6 +405,17 @@ function Monitor() {
 			} 
 		}
 		var preserve = [];
+		events.sort(function(a, b) {
+			if (!('priority' in a) && !('priority' in b)) {
+				return 0;
+			} else if (('priority' in a) && !('priority' in b)) {
+				return 1;
+			} else if (!('priority' in a) && ('priority' in b)) {
+				return -1;
+			} else {
+				return b.priority - a.priority;
+			}
+		});
 		for (var i = 0; i < events.length; ++i) {
 			events[i].fire();
 			if ('recurring' in events[i] && events[i].recurring) {
@@ -415,6 +428,8 @@ function Monitor() {
 	}
 	this.create();
 }
+
+var monitor = new Monitor();
 
 PCircle.prototype = Object.create(PhysicsEntity.prototype);
 PCircle.prototype.constructor = PCircle;
@@ -433,6 +448,14 @@ function PCircle(x, y, radius, mass) {
 	this.grabbed = false;
 	this.grabable = true;
 	this.shootable = true;
+	this.multiSample = true;
+	this.collided = [];
+	this.onCollide = function(e) {
+		this.collided.push(e);
+	};
+	monitor.registerCallback({ priority: 2, recurring: true, fire: function() {
+		this.collided = [];
+	} });
 	this.friction = 0.001;
 	this.shootable = true;
 	PhysicsEntity.apply(this, [{}]);
@@ -441,6 +464,9 @@ function PCircle(x, y, radius, mass) {
 			this.enableCollisionResponse = false;
 			this.shootable = false;
 			if (game.getMouse().mouseDown) {
+				if (this.isColliding()) {
+					return;
+				}
 				this.grabbed = false;
 				this.enableCollisionResponse = true;
 				setTimeout(function() { whiteball.shootable = true; }, 1000);
@@ -450,8 +476,8 @@ function PCircle(x, y, radius, mass) {
 			var yi = this.y;
 			this.x = game.getMouse().x;
 			this.y = game.getMouse().y;
-			this.vx = 0.7 * this.vx + 0.3 * ((this.x - xi) / deltaTime);
-			this.vy = 0.7 * this.vy + 0.3 * ((this.y - yi) / deltaTime);
+			//this.vx = 0.7 * this.vx + 0.3 * ((this.x - xi) / deltaTime);
+			//this.vy = 0.7 * this.vy + 0.3 * ((this.y - yi) / deltaTime);
 		} else {
 			PhysicsEntity.prototype.step.apply(this, arguments);
 		}
@@ -617,20 +643,21 @@ for (var i = 0; i < 5; ++i) {
 		}
 	}
 }
-console.log('skipping: ' + skip);
 var assign = 2;
 balls = shuffle(balls);
 for (var i = 0; i < balls.length; ++i) {
-	balls[i].number = assign;
-	console.log('assigning number ' + assign);
-	assign++;
 	while (skip.indexOf(assign) !== -1) {
 		assign++;
 	}
+	balls[i].number = assign;
+	assign++;
 }
 
 var whiteball = new PCircle(-size.width * (5/16), 0, 10, 30);
 whiteball.number = 0;
+
+monitor.registerCallback({ priority: 0, recurring: true, fire: function() {
+} });
 
 MouseWatcher.prototype = Object.create(Entity.prototype);
 MouseWatcher.prototype.constructor = MouseWatcher;
@@ -706,15 +733,14 @@ function MouseWatcher() {
 }
 new MouseWatcher();
 
-new Pocket(-size.width / 2 + 10, -size.height / 2 + 10);
-new Pocket(-size.width / 2 + 10, size.height / 2 - 10);
-new Pocket(size.width / 2 - 10, -size.height / 2 + 10);
-new Pocket(size.width / 2 - 10, size.height / 2 - 10);
-new Pocket(0, size.height / 2);
-new Pocket(0, -size.height / 2);
+pockets.push(new Pocket(-size.width / 2 + 10, -size.height / 2 + 10));
+pockets.push(new Pocket(-size.width / 2 + 10, size.height / 2 - 10));
+pockets.push(new Pocket(size.width / 2 - 10, -size.height / 2 + 10));
+pockets.push(new Pocket(size.width / 2 - 10, size.height / 2 - 10));
+pockets.push(new Pocket(0, size.height / 2));
+pockets.push(new Pocket(0, -size.height / 2));
 
-var monitor = new Monitor();
-monitor.registerCallback({fire: function() {
+monitor.registerCallback({ priority: 0, fire: function() {
 	var spread = 0;
 	var entities = game.getEntities();
 	var counter = 0;
