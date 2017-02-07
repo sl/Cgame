@@ -5,6 +5,7 @@ game = new Game({
     lockAspectRatioSize: size, canvasId: 'display', updateInterval: 18
 });
 
+
 Back.prototype = Object.create(RenderedEntity.prototype);
 Back.prototype.constructor = Back;
 function Back() {
@@ -97,6 +98,7 @@ function Pipe(props, parent) {
     this.vy = 0;
     this.hasMadeNewSet = false;
     this.hasGivenScore = false;
+    this.enableCollisionResponse = true;
     if (isParent) {
         this.vx = -0.15;
         this.x = size.width/2 + 200;
@@ -173,6 +175,7 @@ function Bird() {
     this.z = 3;
     this.vx = 0;
     this.vy = 0;
+    this.enableCollisionResponse = true;
     this.bounds = new BoundingBox.AABB(this, 30, 15);
     this.score = new Score();
     this.step = function (deltaTime) {
