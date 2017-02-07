@@ -32,7 +32,6 @@ function PCircle(x, y, radius, mass) {
 	this.vy = 0;
 	this.mass = mass;
 	this.restitution = 0.25;
-	this.multiSample = true;
 	this.bounds = new BoundingBox.Circle(this, radius);
 	this.grabbed = false;
 	this.grabable = true;
@@ -86,7 +85,6 @@ function PRect(x, y, width, height, hasGravity, mass) {
 	this.vy = 0;
 	this.mass = mass;
 	this.restitution = 0.25;
-	this.multiSample = true;
 	this.bounds = new BoundingBox.AABB(this, width, height);
 	this.hasGravity = hasGravity;
 	this.grabbed = false;
@@ -152,6 +150,7 @@ function getMouseEntity() {
 //new PCircle(20, 200, 30, 30);
 game.startUpdating();
 document.addEventListener('keydown', function(e) {
+	console.log(e.keyCode);
     if (e.keyCode === 65) {
         new PRect(game.getMouse().x, game.getMouse().y, 60, 60, true, 30);
     } else if (e.keyCode === 83) {
